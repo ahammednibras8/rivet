@@ -1,122 +1,278 @@
 # Rivet
 
-Rivet is a headless, autonomous SRE remediation daemon. It receives failure
-webhooks from production and CI/CD systems, diagnoses the fault inside an
-isolated Git worktree, creates and verifies a test-driven fix, and opens a pull
-request for human review.
+Rivet gives T3 Code a durable home in the cloud so AI-assisted development can
+continue from a phone without depending on a personal laptop.
 
-> **Project status:** Phase 1 bootstrap. The architecture below describes the
-> initial implementation target; application code has not been scaffolded yet.
+Instead of relaying through a laptop that may be asleep, powered off, or on an
+unreliable network, Rivet runs the T3 Code server, repositories, agent
+providers, and development tools on a persistent cloud host. The existing T3
+Code mobile app connects to that host, and the developer continues the same
+threads, worktrees, tests, diffs, and pull requests from anywhere.
 
-## How Rivet works
+> **Project status:** Product-definition and Phase 1 bootstrap. No application
+> or infrastructure code has been scaffolded yet.
 
-1. A supported service sends a failure webhook to Rivet.
-2. Rivet authenticates and normalizes the event into an incident record.
-3. An ephemeral worktree is created from the failing commit.
-4. The remediation agent identifies the likely fault location from the stack
-   trace and surrounding source code.
-5. The agent writes a regression test, applies the smallest viable patch, and
-   runs the repository's test suite.
-6. A verified fix is pushed to an incident-specific branch and submitted as a
-   pull request with diagnostic and verification details.
+## The problem
 
-## Architecture
+[T3 Code](https://t3.codes/) already provides mobile clients and can connect
+them to a remote environment. Its
+[remote-access documentation](https://github.com/pingdotgg/t3code/blob/main/docs/user/remote-access.md)
+states that the machine running the T3 Code server must remain running and
+reachable.
 
-### Ingress daemon
+A personal laptop is a fragile host for work that must remain available while
+travelling or away from a desk:
 
-`src/index.ts` will expose the following initial endpoints:
+- it may sleep, shut down, lose power, or lose network connectivity;
+- repositories and agent sessions become unreachable with it;
+- long-running agent tasks stop being useful if their host disappears;
+- remote access depends on the condition of a device that is no longer nearby.
 
-- `GET /health` — lightweight process health check.
-- `POST /api/v1/incidents` — authenticated incident ingestion.
+Rivet moves that dependency to an intentionally managed cloud environment.
 
-Incoming GitHub HMAC signatures and Sentry tokens will be verified before the
-payload is accepted. Provider-specific events will be converted into a common
-`IncidentRecord` containing the repository, failing commit, branch, error
-message, stack trace, and source metadata.
+## Product promise
 
-### Ephemeral sandbox engine
+With Rivet, a developer can:
 
-`src/sandbox/` will manage detached Git worktrees beneath
-`/tmp/rivet/<incident-id>`. Every remediation run will operate on the exact
-failing commit and will clean up its worktree when complete. Rivet will never
-apply autonomous changes directly to a repository's primary working tree.
+1. create or select a scoped GitHub issue;
+2. start the work in T3 Code from a laptop, browser, or phone;
+3. leave the laptop powered off;
+4. reconnect from the T3 Code mobile app;
+5. inspect the same thread, repository, branch, worktree, command output, and
+   agent progress;
+6. answer questions, steer the agent, run checks, and review the diff;
+7. create or review a pull request; and
+8. leave the final merge decision to a human.
 
-### Diagnostic and patch agent
+The phone is a control surface. Source code, tools, credentials, and agent
+processes stay on the cloud host.
 
-`src/agent/` will:
+## What Rivet is
 
-- Parse stack traces to locate relevant files and line numbers.
-- Inspect narrowly scoped source context around the failure.
-- Add a failing reproduction test before changing implementation code.
-- Generate a minimal patch.
-- Run the detected test command inside the isolated worktree.
-- Reject delivery when verification fails.
+Rivet is the provisioning and operations layer for a personal, cloud-hosted T3
+Code environment. It is responsible for making that environment reproducible,
+reachable, persistent, observable, and safe to operate without a laptop.
 
-### Git operations and delivery
+Rivet will manage:
 
-`src/git/` will create branches named `rivet/fix-<incident-id>` and use the
-GitHub API to open pull requests containing:
+- creation and configuration of the cloud compute environment;
+- installation and supervised startup of the T3 Code server;
+- secure connection of the official T3 Code mobile, web, and desktop clients;
+- GitHub repository access and workspace initialization;
+- installation of approved coding-agent providers and development tools;
+- durable storage for T3 data, repositories, worktrees, and session state;
+- health checks, restart behavior, updates, backups, and recovery;
+- lifecycle operations such as provision, suspend, resume, and destroy.
 
-- A root-cause summary.
-- An explanation of the defect and proposed fix.
-- Details of the regression test.
-- Captured verification output.
+## What Rivet is not
 
-### Persistence
+Rivet is not:
 
-Supabase will store normalized incidents, remediation attempts, execution
-history, verification results, and delivery status for auditability.
+- a replacement or fork of the T3 Code mobile app;
+- a new coding-agent harness;
+- a remote-desktop stream from a personal laptop;
+- a CI, Sentry, or production-alert remediation daemon;
+- an autonomous deployment system;
+- an autonomous pull-request merger;
+- a service that resells model access or stores model credentials in Git.
 
-## Planned project structure
+Rivet uses T3 Code as the agent control plane and supplies the reliable cloud
+environment beneath it.
 
-```text
-rivet/
-├── src/
-│   ├── agent/
-│   ├── git/
-│   ├── sandbox/
-│   │   └── worktree.ts
-│   ├── types/
-│   │   └── incident.ts
-│   └── index.ts
-├── tests/
-├── .env.example
-├── package.json
-└── tsconfig.json
-```
+## How it works
 
-## Technology
+### 1. Provision a cloud workspace
 
-- Node.js 22 or newer
-- TypeScript with strict type checking and ES modules
-- Octokit for GitHub operations
-- Supabase for incident persistence and run history
-- `tsx` for local TypeScript execution
-- Deterministic subprocess execution via `execFile` or `spawn`
+Rivet creates a supported Linux host with persistent storage. The host is the
+development machine; the user's laptop is not part of the runtime path.
 
-## Security and safety principles
+The initial release will target one cloud provider and one documented host
+shape. The provider, region, machine size, and monthly cost ceiling must be
+chosen explicitly before implementation.
 
-- Authenticate every incident before performing work.
-- Treat webhook data, stack traces, and repository contents as untrusted input.
-- Use argument-based process APIs rather than shell interpolation.
-- Restrict all mutation to disposable worktrees.
-- Base remediation on an explicit commit SHA for reproducibility.
-- Require a passing regression test and test suite before delivery.
-- Keep credentials out of logs, patches, commits, and pull-request bodies.
-- Preserve execution evidence for review and auditing.
+### 2. Bootstrap T3 Code and development tools
+
+Rivet installs the T3 Code command-line server, Git, the selected agent
+provider CLI, and the repository's required toolchain. T3 Code and Rivet
+services run under supervision and restart after a host reboot.
+
+Provider authentication and source-control authentication are configured on
+the cloud host because that is where T3 Code and the agents execute.
+
+### 3. Connect a phone securely
+
+Phase 1 will use a connection method supported by T3 Code rather than inventing
+a new remote-control protocol. T3 Code currently supports T3 Connect, direct
+HTTPS pairing, Tailscale, and other remote routes.
+
+The selected route must:
+
+- authenticate every client;
+- encrypt traffic in transit;
+- expose no unauthenticated T3 endpoint to the public internet;
+- support revoking a lost or replaced phone;
+- use the narrowest T3 client scopes that still permit the intended workflow.
+
+### 4. Keep work durable
+
+Repositories, T3 state, active worktrees, and run metadata live on persistent
+cloud storage. A phone disconnect must not stop an agent or discard its output.
+A host reboot must restore the T3 service and make existing work reachable
+again.
+
+Rivet does not promise survival after the host and its storage are both
+destroyed. Backup and recovery must be configured and verified separately.
+
+### 5. Deliver through GitHub
+
+The working convention remains issue to branch to pull request:
+
+1. A human creates a bounded issue.
+2. Work occurs on an issue-specific branch or worktree.
+3. The agent and developer run the repository's required checks.
+4. The resulting pull request records the change and verification evidence.
+5. A human reviews and merges the pull request.
+
+GitHub organizes and delivers the work. It does not replace the live T3 thread
+that carries the investigation and implementation context.
+
+## System boundaries
+
+### Mobile client
+
+The official T3 Code mobile app displays threads and sends developer actions.
+It does not hold the authoritative repository or execute build commands.
+
+### T3 Code server
+
+T3 Code owns agent orchestration, threads, worktrees, previews, terminal
+sessions, diffs, and pull-request interactions. Rivet installs and operates it
+but should not duplicate those features.
+
+### Rivet control layer
+
+Rivet owns cloud provisioning, host configuration, service lifecycle, health,
+storage, backup, recovery, and the minimum integration needed to present a
+ready T3 environment.
+
+### Cloud workspace
+
+The workspace contains the checked-out repositories, T3 data, approved agent
+providers, language toolchains, and isolated worktrees. It is the only machine
+that must remain available while mobile work continues.
+
+### GitHub
+
+GitHub remains the source of repositories, issues, branches, and pull
+requests. Credentials must be limited to the repositories and operations the
+developer explicitly authorizes.
+
+## Security and safety contract
+
+Moving development into the cloud increases availability and also moves source
+code and credentials onto an internet-connected host. Phase 1 is not complete
+until these boundaries are enforced and tested:
+
+- no dependency on the user's laptop for availability or authentication;
+- no unauthenticated public T3 Code endpoint;
+- encrypted client-to-host transport;
+- key-based administrative access with password login disabled;
+- least-privilege GitHub and agent-provider credentials;
+- secrets stored outside repositories, command history, logs, and pull
+  requests;
+- encrypted persistent storage where the selected provider supports it;
+- explicit device pairing and session revocation;
+- automatic security updates or a documented patching procedure;
+- service restart after host reboot;
+- bounded logs that do not capture prompts, credentials, or repository content
+  unnecessarily;
+- recoverable backups with a tested restore procedure;
+- no direct pushes to a protected default branch;
+- no autonomous merge or deployment;
+- human review before every generated pull request is merged.
+
+Destructive lifecycle actions must name the exact cloud host and storage
+affected. Destroying a workspace or backup requires explicit human
+confirmation.
+
+## Availability model
+
+Rivet removes the laptop as a single point of failure; it does not eliminate
+all failure.
+
+The Phase 1 availability target is:
+
+- the cloud host can run while every personal device is offline;
+- T3 Code restarts automatically after a host reboot;
+- a dropped mobile connection can reconnect to the existing environment;
+- agent work may continue while no client is connected;
+- repositories and session state live on persistent storage;
+- health and storage failures are visible before work is lost;
+- a documented restore recreates the environment from backup.
+
+Cloud-provider outages, expired provider credentials, exhausted model quotas,
+repository-host outages, and accidental destruction remain external failure
+modes and must be reported clearly.
 
 ## Phase 1 scope
 
-The bootstrap milestone will establish:
+Phase 1 will prove one complete personal workflow:
 
-- A strict TypeScript project configuration and initial directory structure.
-- Typed incident and provider models.
-- Health and incident-ingestion HTTP endpoints.
-- GitHub and Sentry webhook authentication.
-- Safe worktree creation and cleanup primitives.
+- one developer;
+- one supported cloud provider and region;
+- one Linux cloud host with persistent storage;
+- one GitHub account and explicitly selected repositories;
+- T3 Code running as a supervised service;
+- one supported secure remote-access route;
+- the official T3 Code mobile app connected to the cloud environment;
+- at least one approved coding-agent provider;
+- restart-safe T3 and repository state;
+- health, backup, restore, and destroy procedures;
+- an issue-driven branch and pull request completed while the laptop is off.
 
-Later phases will add autonomous diagnosis, test generation, patching,
-verification, persistence, and pull-request delivery.
+## Phase 1 acceptance criteria
+
+Phase 1 is complete only when all of the following are demonstrated:
+
+- a fresh cloud workspace can be provisioned from documented configuration;
+- the T3 Code mobile app can pair with it without opening an unauthenticated
+  public endpoint;
+- a repository can be cloned and an agent thread started from the cloud host;
+- the laptop can be powered off without interrupting the workflow;
+- the same thread can be continued from a phone;
+- an agent can edit an isolated branch, run repository checks, and preserve its
+  output across a mobile disconnect;
+- the host can reboot and restore access to the existing repository and T3
+  state;
+- a pull request can be created with verification evidence;
+- Rivet cannot merge that pull request automatically;
+- a backup can restore the environment or its documented durable state;
+- the workspace and its storage can be intentionally destroyed without
+  affecting any unselected resource.
+
+## Decisions required before implementation
+
+The first engineering issues must resolve these choices with cost and security
+evidence:
+
+- cloud provider, region, machine type, and spending limit;
+- always-on host versus suspend/resume behavior;
+- T3 Connect versus a private-network or direct-HTTPS route;
+- host image and configuration-management approach;
+- persistent-volume and backup strategy;
+- secret storage and credential rotation;
+- supported coding-agent provider for the first end-to-end proof;
+- update and rollback policy for T3 Code;
+- health monitoring and notification path.
+
+These are product decisions, not details to guess during implementation.
+
+## Relationship to T3 Code
+
+Rivet is an independent project built around T3 Code's documented remote-host
+capabilities. T3 Code remains the user interface and coding-agent control
+plane. Rivet focuses on the cloud environment required to keep that control
+plane available when a personal laptop is not.
 
 ## License
 
