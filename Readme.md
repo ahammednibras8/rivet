@@ -126,13 +126,28 @@ destroyed. Backup and recovery must be configured and verified separately.
 
 ### 5. Deliver through GitHub
 
-The working convention remains issue to branch to pull request:
+Every implementation issue follows the same delivery workflow:
 
-1. A human creates a bounded issue.
-2. Work occurs on an issue-specific branch or worktree.
-3. The agent and developer run the repository's required checks.
-4. The resulting pull request records the change and verification evidence.
-5. A human reviews and merges the pull request.
+1. Select exactly one open, unblocked milestone issue. Do not create branches
+   for later issues in advance.
+2. Create `feature/<issue-number>-<short-name>` from the latest `main`, or use
+   an equivalent issue-specific worktree.
+3. Implement only the issue's declared scope. Record any necessary scope
+   change in the issue before expanding the implementation.
+4. Run the automated checks named by the issue and record the exact commands
+   and results.
+5. Perform the issue's manual verification and retain redacted evidence. Never
+   publish credentials, authorization links, private logs, prompts, or
+   unrelated repository content.
+6. Open a focused pull request using `Related: #<issue-number>`. Do not use an
+   automatic-closing keyword unless a human explicitly requests it.
+7. Leave the pull request open for human review and merge. Rivet must not
+   approve, auto-merge, merge, or deploy it.
+8. After the merge, confirm the required evidence is present and then close
+   the issue manually.
+
+The pull request template carries this evidence contract into each future
+change. A blocked issue does not start until its direct blockers are complete.
 
 GitHub organizes and delivers the work. It does not replace the live T3 thread
 that carries the investigation and implementation context.
