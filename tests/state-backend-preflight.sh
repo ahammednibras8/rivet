@@ -6,6 +6,8 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly repository_root
 readonly subject="${repository_root}/infra/bootstrap/state-backend.sh"
 readonly fake_bin="${repository_root}/tests/fixtures/bin"
+jq_directory="$(dirname "$(command -v jq)")"
+readonly jq_directory
 test_directory="$(mktemp -d "${TMPDIR:-/tmp}/rivet-state-backend-test.XXXXXX")"
 readonly test_directory
 trap 'rm -rf "$test_directory"' EXIT
@@ -25,6 +27,9 @@ fake_ownership=BucketOwnerEnforced
 fake_public_access='True\tTrue\tTrue\tTrue'
 fake_encryption=AES256
 fake_versioning=Enabled
+fake_tags='ManagedBy\tAWSCLI\nPhase\tphase-1\nProject\tRivet'
+fake_lifecycle_matches=1
+fake_installed_policy=""
 
 run_case() {
   local action="$1"
@@ -39,7 +44,7 @@ run_case() {
 
   set +e
   case_output="$(
-    PATH="${fake_bin}:/usr/bin:/bin" \
+    PATH="${fake_bin}:${jq_directory}:/usr/bin:/bin" \
       FAKE_AWS_IDENTITY="$fake_identity" \
       FAKE_AWS_STATUS="$fake_aws_status" \
       FAKE_AWS_LOG="$log_file" \
@@ -52,6 +57,9 @@ run_case() {
       FAKE_PUBLIC_ACCESS="$fake_public_access" \
       FAKE_ENCRYPTION="$fake_encryption" \
       FAKE_VERSIONING="$fake_versioning" \
+      FAKE_TAGS="$fake_tags" \
+      FAKE_LIFECYCLE_MATCHES="$fake_lifecycle_matches" \
+      FAKE_INSTALLED_POLICY="$fake_installed_policy" \
       "$subject" "$action" <<<"$confirmation" 2>&1
   )"
   case_status=$?
@@ -127,6 +135,12 @@ assert_core_verification_calls() {
   assert_log_contains 's3api get-bucket-versioning'
 }
 
+assert_metadata_verification_calls() {
+  assert_log_contains 's3api get-bucket-tagging'
+  assert_log_contains 's3api get-bucket-lifecycle-configuration'
+  assert_log_contains 's3api get-bucket-policy'
+}
+
 assert_bucket_policy() {
   [[ -s "$case_policy_file" ]] || fail 'expected a rendered bucket policy'
 
@@ -181,8 +195,10 @@ assert_log_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
 assert_contains 'State bucket protection settings converged.'
 assert_contains 'State bucket core protection settings verified.'
+assert_contains 'State bucket tags, retention, and policy verified.'
 assert_protection_calls
 assert_core_verification_calls
+assert_metadata_verification_calls
 assert_bucket_policy
 
 fake_bucket_exists=true
@@ -193,6 +209,8 @@ assert_log_not_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
 assert_protection_calls
 assert_core_verification_calls
+assert_metadata_verification_calls
+assert_contains 'State bucket tags, retention, and policy verified.'
 assert_bucket_policy
 
 fake_ownership=ObjectWriter
@@ -219,6 +237,25 @@ assert_status 1
 assert_contains 'error: bucket versioning is not enabled'
 
 fake_versioning=Enabled
+
+fake_tags='ManagedBy\tAWSCLI\nPhase\tphase-1'
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: state bucket tags do not match the required set'
+
+fake_tags='ManagedBy\tAWSCLI\nPhase\tphase-1\nProject\tRivet'
+fake_lifecycle_matches=0
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: state bucket lifecycle retention is incorrect'
+
+fake_lifecycle_matches=1
+fake_installed_policy='{"Version":"2012-10-17","Statement":[]}'
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: installed state bucket policy differs from the required policy'
+
+fake_installed_policy=""
 
 fake_fail_operation=put-public-access-block
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an

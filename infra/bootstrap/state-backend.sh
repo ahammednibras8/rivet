@@ -28,6 +28,11 @@ esac
 
 export AWS_PAGER=""
 
+if ! command -v jq >/dev/null 2>&1; then
+  printf 'error: jq is required for policy verification\n' >&2
+  exit 1
+fi
+
 account_id="$(require_temporary_aws_account_id "$aws_region")"
 readonly account_id
 
@@ -53,3 +58,8 @@ fi
 ensure_state_bucket "$state_bucket" "$account_id" "$aws_region"
 configure_state_bucket "$state_bucket" "$account_id" "$aws_region" "$state_key"
 verify_state_bucket_core_controls "$state_bucket" "$account_id" "$aws_region"
+verify_state_bucket_metadata_controls \
+  "$state_bucket" \
+  "$account_id" \
+  "$aws_region" \
+  "$state_key"

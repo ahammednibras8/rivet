@@ -21,6 +21,8 @@ if [[ "${1:-}" == "s3api" && "${2:-}" == "put-bucket-policy" ]]; then
   exit 0
 fi
 
+# The lifecycle-query backticks below are JMESPath literals.
+# shellcheck disable=SC2016
 case "$*" in
   'sts get-caller-identity --region ap-south-1 --query [Account,Arn] --output text')
     if [[ "${FAKE_AWS_STATUS:-0}" != "0" ]]; then
@@ -71,6 +73,21 @@ case "$*" in
     ;;
   's3api get-bucket-versioning --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query Status --output text')
     printf '%s\n' "${FAKE_VERSIONING:-Enabled}"
+    ;;
+  's3api get-bucket-tagging --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query sort_by(TagSet, &Key)[].[Key,Value] --output text')
+    printf '%b\n' "${FAKE_TAGS:-ManagedBy\\tAWSCLI\\nPhase\\tphase-1\\nProject\\tRivet}"
+    ;;
+  's3api get-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query length(Rules[?ID==`LimitNoncurrentStateAndLockVersions` && Status==`Enabled` && Filter.Prefix==`phase-1/` && NoncurrentVersionExpiration.NoncurrentDays==`90` && NoncurrentVersionExpiration.NewerNoncurrentVersions==`10` && Expiration.ExpiredObjectDeleteMarker==`true`]) --output text')
+    printf '%s\n' "${FAKE_LIFECYCLE_MATCHES:-1}"
+    ;;
+  's3api get-bucket-policy --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query Policy --output text')
+    if [[ -n "${FAKE_INSTALLED_POLICY:-}" ]]; then
+      printf '%s\n' "$FAKE_INSTALLED_POLICY"
+    else
+      : "${FAKE_POLICY_FILE:?FAKE_POLICY_FILE is required}"
+      [[ -s "$FAKE_POLICY_FILE" ]] || exit 72
+      command cat "$FAKE_POLICY_FILE"
+    fi
     ;;
   *)
     printf 'unexpected AWS CLI call: %s\n' "$*" >&2

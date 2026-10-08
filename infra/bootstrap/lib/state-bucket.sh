@@ -167,3 +167,74 @@ verify_state_bucket_core_controls() {
 
   printf 'State bucket core protection settings verified.\n'
 }
+
+verify_state_bucket_metadata_controls() {
+  local bucket="$1"
+  local expected_owner="$2"
+  local region="$3"
+  local state_object_key="$4"
+  local tags
+  local lifecycle_matches
+  local expected_policy
+  local installed_policy
+  local expected_policy_canonical
+  local installed_policy_canonical
+
+  tags="$(
+    aws s3api get-bucket-tagging \
+      --bucket "$bucket" \
+      --expected-bucket-owner "$expected_owner" \
+      --region "$region" \
+      --query 'sort_by(TagSet, &Key)[].[Key,Value]' \
+      --output text
+  )" || return $?
+
+  lifecycle_matches="$(
+    # The backticks are JMESPath literals, not shell command substitutions.
+    # shellcheck disable=SC2016
+    aws s3api get-bucket-lifecycle-configuration \
+      --bucket "$bucket" \
+      --expected-bucket-owner "$expected_owner" \
+      --region "$region" \
+      --query 'length(Rules[?ID==`LimitNoncurrentStateAndLockVersions` && Status==`Enabled` && Filter.Prefix==`phase-1/` && NoncurrentVersionExpiration.NoncurrentDays==`90` && NoncurrentVersionExpiration.NewerNoncurrentVersions==`10` && Expiration.ExpiredObjectDeleteMarker==`true`])' \
+      --output text
+  )" || return $?
+
+  installed_policy="$(
+    aws s3api get-bucket-policy \
+      --bucket "$bucket" \
+      --expected-bucket-owner "$expected_owner" \
+      --region "$region" \
+      --query Policy \
+      --output text
+  )" || return $?
+
+  expected_policy="$(
+    render_state_bucket_policy "$bucket" "$state_object_key"
+  )" || return $?
+
+  expected_policy_canonical="$(
+    printf '%s' "$expected_policy" | jq --sort-keys --compact-output .
+  )" || return $?
+
+  installed_policy_canonical="$(
+    printf '%s' "$installed_policy" | jq --sort-keys --compact-output .
+  )" || return $?
+
+  if [[ "$tags" != $'ManagedBy\tAWSCLI\nPhase\tphase-1\nProject\tRivet' ]]; then
+    printf 'error: state bucket tags do not match the required set\n' >&2
+    return 1
+  fi
+
+  if [[ "$lifecycle_matches" != "1" ]]; then
+    printf 'error: state bucket lifecycle retention is incorrect\n' >&2
+    return 1
+  fi
+
+  if [[ "$installed_policy_canonical" != "$expected_policy_canonical" ]]; then
+    printf 'error: installed state bucket policy differs from the required policy\n' >&2
+    return 1
+  fi
+
+  printf 'State bucket tags, retention, and policy verified.\n'
+}
