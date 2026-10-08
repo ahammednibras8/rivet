@@ -144,6 +144,16 @@ run "accepts_valid_operator_inputs" {
     ]))
     error_message = "Every budget alert must have exactly one private email subscriber."
   }
+
+  assert {
+    condition = (
+      output.workspace_instance_name == aws_lightsail_instance.workspace.name &&
+      output.workspace_ipv4_address ==
+      aws_lightsail_static_ip_attachment.workspace.ip_address &&
+      output.workspace_ssh_user == "rivet-admin"
+    )
+    error_message = "Outputs must expose only the stable operational connection values."
+  }
 }
 
 run "rejects_unrestricted_ssh" {
