@@ -4,8 +4,8 @@ provider "aws" {
   default_tags {
     tags = {
       ManagedBy = "OpenTofu"
-      Phase = "phase-1"
-      Project = "Rivet"
+      Phase     = "phase-1"
+      Project   = "Rivet"
     }
   }
 }
