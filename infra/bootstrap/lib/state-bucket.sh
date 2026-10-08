@@ -99,3 +99,71 @@ configure_state_bucket() {
 
   printf 'State bucket protection settings converged.\n'
 }
+
+verify_state_bucket_core_controls() {
+  local bucket="$1"
+  local expected_owner="$2"
+  local region="$3"
+  local ownership
+  local public_access
+  local encryption
+  local versioning
+
+  ownership="$(
+    aws s3api get-bucket-ownership-controls \
+      --bucket "$bucket" \
+      --expected-bucket-owner "$expected_owner" \
+      --region "$region" \
+      --query 'OwnershipControls.Rules[0].ObjectOwnership' \
+      --output text
+  )" || return $?
+
+  public_access="$(
+    aws s3api get-public-access-block \
+      --bucket "$bucket" \
+      --expected-bucket-owner "$expected_owner" \
+      --region "$region" \
+      --query 'PublicAccessBlockConfiguration.[BlockPublicAcls,IgnorePublicAcls,BlockPublicPolicy,RestrictPublicBuckets]' \
+      --output text
+  )" || return $?
+
+  encryption="$(
+    aws s3api get-bucket-encryption \
+      --bucket "$bucket" \
+      --expected-bucket-owner "$expected_owner" \
+      --region "$region" \
+      --query 'ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm' \
+      --output text
+  )" || return $?
+
+  versioning="$(
+    aws s3api get-bucket-versioning \
+      --bucket "$bucket" \
+      --expected-bucket-owner "$expected_owner" \
+      --region "$region" \
+      --query Status \
+      --output text
+  )" || return $?
+
+  if [[ "$ownership" != "BucketOwnerEnforced" ]]; then
+    printf 'error: bucket ownership control was not retained\n' >&2
+    return 1
+  fi
+
+  if [[ "$public_access" != $'True\tTrue\tTrue\tTrue' ]]; then
+    printf 'error: bucket public-access block is incomplete\n' >&2
+    return 1
+  fi
+
+  if [[ "$encryption" != "AES256" ]]; then
+    printf 'error: bucket default encryption is not SSE-S3\n' >&2
+    return 1
+  fi
+
+  if [[ "$versioning" != "Enabled" ]]; then
+    printf 'error: bucket versioning is not enabled\n' >&2
+    return 1
+  fi
+
+  printf 'State bucket core protection settings verified.\n'
+}

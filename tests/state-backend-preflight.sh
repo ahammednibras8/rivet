@@ -21,6 +21,10 @@ fake_bucket_exists=false
 fake_create_status=0
 fake_bucket_region=ap-south-1
 fake_fail_operation=""
+fake_ownership=BucketOwnerEnforced
+fake_public_access='True\tTrue\tTrue\tTrue'
+fake_encryption=AES256
+fake_versioning=Enabled
 
 run_case() {
   local action="$1"
@@ -44,6 +48,10 @@ run_case() {
       FAKE_CREATE_STATUS="$fake_create_status" \
       FAKE_BUCKET_REGION="$fake_bucket_region" \
       FAKE_FAIL_OPERATION="$fake_fail_operation" \
+      FAKE_OWNERSHIP="$fake_ownership" \
+      FAKE_PUBLIC_ACCESS="$fake_public_access" \
+      FAKE_ENCRYPTION="$fake_encryption" \
+      FAKE_VERSIONING="$fake_versioning" \
       "$subject" "$action" <<<"$confirmation" 2>&1
   )"
   case_status=$?
@@ -112,6 +120,13 @@ assert_protection_calls() {
   assert_log_contains 's3api put-bucket-policy'
 }
 
+assert_core_verification_calls() {
+  assert_log_contains 's3api get-bucket-ownership-controls'
+  assert_log_contains 's3api get-public-access-block'
+  assert_log_contains 's3api get-bucket-encryption'
+  assert_log_contains 's3api get-bucket-versioning'
+}
+
 assert_bucket_policy() {
   [[ -s "$case_policy_file" ]] || fail 'expected a rendered bucket policy'
 
@@ -165,7 +180,9 @@ assert_log_contains 's3api head-bucket'
 assert_log_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
 assert_contains 'State bucket protection settings converged.'
+assert_contains 'State bucket core protection settings verified.'
 assert_protection_calls
+assert_core_verification_calls
 assert_bucket_policy
 
 fake_bucket_exists=true
@@ -175,7 +192,33 @@ assert_contains 'State bucket already exists.'
 assert_log_not_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
 assert_protection_calls
+assert_core_verification_calls
 assert_bucket_policy
+
+fake_ownership=ObjectWriter
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket ownership control was not retained'
+
+fake_ownership=BucketOwnerEnforced
+fake_public_access='True\tTrue\tFalse\tTrue'
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket public-access block is incomplete'
+
+fake_public_access='True\tTrue\tTrue\tTrue'
+fake_encryption=aws:kms
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket default encryption is not SSE-S3'
+
+fake_encryption=AES256
+fake_versioning=Suspended
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket versioning is not enabled'
+
+fake_versioning=Enabled
 
 fake_fail_operation=put-public-access-block
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an

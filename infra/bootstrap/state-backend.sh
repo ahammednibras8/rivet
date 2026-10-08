@@ -52,3 +52,4 @@ fi
 
 ensure_state_bucket "$state_bucket" "$account_id" "$aws_region"
 configure_state_bucket "$state_bucket" "$account_id" "$aws_region" "$state_key"
+verify_state_bucket_core_controls "$state_bucket" "$account_id" "$aws_region"

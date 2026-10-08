@@ -60,6 +60,18 @@ case "$*" in
   's3api put-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --lifecycle-configuration Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=phase-1/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}] --region ap-south-1')
     [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-lifecycle-configuration" ]] || exit 71
     ;;
+  's3api get-bucket-ownership-controls --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query OwnershipControls.Rules[0].ObjectOwnership --output text')
+    printf '%s\n' "${FAKE_OWNERSHIP:-BucketOwnerEnforced}"
+    ;;
+  's3api get-public-access-block --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query PublicAccessBlockConfiguration.[BlockPublicAcls,IgnorePublicAcls,BlockPublicPolicy,RestrictPublicBuckets] --output text')
+    printf '%b\n' "${FAKE_PUBLIC_ACCESS:-True\\tTrue\\tTrue\\tTrue}"
+    ;;
+  's3api get-bucket-encryption --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm --output text')
+    printf '%s\n' "${FAKE_ENCRYPTION:-AES256}"
+    ;;
+  's3api get-bucket-versioning --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query Status --output text')
+    printf '%s\n' "${FAKE_VERSIONING:-Enabled}"
+    ;;
   *)
     printf 'unexpected AWS CLI call: %s\n' "$*" >&2
     exit 64
