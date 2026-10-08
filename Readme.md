@@ -86,9 +86,10 @@ environment beneath it.
 Rivet creates a supported Linux host with persistent storage. The host is the
 development machine; the user's laptop is not part of the runtime path.
 
-The initial release will target one cloud provider and one documented host
-shape. The provider, region, machine size, and monthly cost ceiling must be
-chosen explicitly before implementation.
+Phase 1 uses one always-on Amazon Lightsail instance in the Mumbai
+(`ap-south-1`) region. The accepted host is Ubuntu Server 24.04 LTS on x86-64,
+using the General Purpose plan with 2 vCPUs, 4 GB RAM, and an 80 GB SSD. Phase
+1 has a USD 30 monthly service-cost limit before tax.
 
 ### 2. Bootstrap T3 Code and development tools
 
@@ -101,9 +102,9 @@ the cloud host because that is where T3 Code and the agents execute.
 
 ### 3. Connect a phone securely
 
-Phase 1 will use a connection method supported by T3 Code rather than inventing
-a new remote-control protocol. T3 Code currently supports T3 Connect, direct
-HTTPS pairing, Tailscale, and other remote routes.
+Phase 1 uses T3 Connect rather than inventing a new remote-control protocol or
+operating multiple access routes. The Lightsail and host firewalls must not
+expose T3 Code, HTTP, or HTTPS listeners to the public internet.
 
 The selected route must:
 
@@ -219,11 +220,11 @@ modes and must be reported clearly.
 Phase 1 will prove one complete personal workflow:
 
 - one developer;
-- one supported cloud provider and region;
-- one Linux cloud host with persistent storage;
+- AWS Lightsail in the Mumbai (`ap-south-1`) region;
+- one always-on Ubuntu Server 24.04 LTS x86-64 host with persistent storage;
 - one GitHub account and explicitly selected repositories;
 - T3 Code running as a supervised service;
-- one supported secure remote-access route;
+- T3 Connect as the only supported remote-access route;
 - the official T3 Code mobile app connected to the cloud environment;
 - at least one approved coding-agent provider;
 - restart-safe T3 and repository state;
@@ -250,22 +251,31 @@ Phase 1 is complete only when all of the following are demonstrated:
 - the workspace and its storage can be intentionally destroyed without
   affecting any unselected resource.
 
-## Decisions required before implementation
+## Accepted Phase 1 decisions
 
-The first engineering issues must resolve these choices with cost and security
+The architecture decision records are the authoritative technical records.
+This summary makes their accepted constraints visible without replacing their
+rationale, security controls, acceptance gates, or review triggers.
+
+| Area | Accepted decision | Record |
+| --- | --- | --- |
+| Cloud foundation | AWS Lightsail in Mumbai (`ap-south-1`); Ubuntu Server 24.04 LTS on x86-64; General Purpose 2 vCPU, 4 GB RAM, 80 GB SSD plan; USD 30 monthly service-cost limit before tax | [ADR-0001](docs/adr/0001-phase-1-cloud-foundation.md) |
+| Host lifecycle | Keep the Phase 1 host always on; do not implement routine suspend/resume | [ADR-0002](docs/adr/0002-keep-the-phase-1-host-always-on.md) |
+| Remote access | Use T3 Connect as the only Phase 1 route; expose no public T3, HTTP, or HTTPS listener | [ADR-0003](docs/adr/0003-use-t3-connect-for-phase-1-remote-access.md) |
+| Automation | Use OpenTofu with the official AWS provider for cloud resources, a private versioned and encrypted S3 backend in `ap-south-1`, minimal cloud-init for first boot, and Ansible Core for host configuration | [ADR-0004](docs/adr/0004-use-opentofu-and-ansible-for-phase-1-automation.md) |
+
+Implementation issues must still resolve these choices with security and test
 evidence:
 
-- cloud provider, region, machine type, and spending limit;
-- always-on host versus suspend/resume behavior;
-- T3 Connect versus a private-network or direct-HTTPS route;
-- host image and configuration-management approach;
-- persistent-volume and backup strategy;
+- persistent-volume and workspace-backup procedures;
 - secret storage and credential rotation;
-- supported coding-agent provider for the first end-to-end proof;
-- update and rollback policy for T3 Code;
-- health monitoring and notification path.
+- the supported coding-agent provider for the first end-to-end proof;
+- the T3 Code update and rollback policy; and
+- the health-monitoring and notification path.
 
-These are product decisions, not details to guess during implementation.
+Changing an accepted decision requires a superseding ADR. The remaining
+choices must not silently weaken the accepted cost, access, automation, or
+human-approval boundaries.
 
 ## Relationship to T3 Code
 
