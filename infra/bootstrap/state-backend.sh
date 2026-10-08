@@ -97,3 +97,39 @@ if [[ "$actual_region" != "$aws_region" ]]; then
 fi
 
 printf 'State bucket ownership and region verified.\n'
+
+aws s3api put-bucket-ownership-controls \
+  --bucket "$state_bucket" \
+  --expected-bucket-owner "$account_id" \
+  --ownership-controls \
+    'Rules=[{ObjectOwnership=BucketOwnerEnforced}]' \
+  --region "$aws_region"
+
+aws s3api put-public-access-block \
+  --bucket "$state_bucket" \
+  --expected-bucket-owner "$account_id" \
+  --public-access-block-configuration \
+    'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true' \
+  --region "$aws_region"
+
+aws s3api put-bucket-encryption \
+  --bucket "$state_bucket" \
+  --expected-bucket-owner "$account_id" \
+  --server-side-encryption-configuration \
+    'Rules=[{ApplyServerSideEncryptionByDefault={SSEAlgorithm=AES256}}]' \
+  --region "$aws_region"
+
+aws s3api put-bucket-versioning \
+  --bucket "$state_bucket" \
+  --expected-bucket-owner "$account_id" \
+  --versioning-configuration 'Status=Enabled' \
+  --region "$aws_region"
+
+aws s3api put-bucket-tagging \
+  --bucket "$state_bucket" \
+  --expected-bucket-owner "$account_id" \
+  --tagging \
+    'TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Phase,Value=phase-1},{Key=Project,Value=Rivet}]' \
+  --region "$aws_region"
+
+printf 'State bucket protection settings converged.\n'

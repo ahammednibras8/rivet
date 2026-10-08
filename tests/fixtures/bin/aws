@@ -2,16 +2,32 @@
 
 set -euo pipefail
 
-readonly expected_arguments="sts get-caller-identity --region ap-south-1 --query [Account,Arn] --output text"
+: "${FAKE_AWS_LOG:?FAKE_AWS_LOG is required}"
+printf '%s\n' "$*" >>"$FAKE_AWS_LOG"
 
-if [[ "$*" != "$expected_arguments" ]]; then
-  printf 'unexpected AWS CLI call: %s\n' "$*" >&2
-  exit 64
-fi
+case "$*" in
+  'sts get-caller-identity --region ap-south-1 --query [Account,Arn] --output text')
+    if [[ "${FAKE_AWS_STATUS:-0}" != "0" ]]; then
+      printf 'simulated AWS authentication failure\n' >&2
+      exit "$FAKE_AWS_STATUS"
+    fi
 
-if [[ "${FAKE_AWS_STATUS:-0}" != "0" ]]; then
-  printf 'simulated AWS authentication failure\n' >&2
-  exit "$FAKE_AWS_STATUS"
-fi
-
-printf '%b\n' "${FAKE_AWS_IDENTITY:?FAKE_AWS_IDENTITY is required}"
+    printf '%b\n' "${FAKE_AWS_IDENTITY:?FAKE_AWS_IDENTITY is required}"
+    ;;
+  's3api head-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1')
+    [[ "${FAKE_BUCKET_EXISTS:-false}" == "true" ]]
+    ;;
+  's3api create-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --bucket-namespace account-regional --object-ownership BucketOwnerEnforced --create-bucket-configuration LocationConstraint=ap-south-1 --region ap-south-1')
+    if [[ "${FAKE_CREATE_STATUS:-0}" != "0" ]]; then
+      printf 'simulated bucket collision\n' >&2
+      exit "$FAKE_CREATE_STATUS"
+    fi
+    ;;
+  's3api get-bucket-location --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query LocationConstraint --output text')
+    printf '%s\n' "${FAKE_BUCKET_REGION:-ap-south-1}"
+    ;;
+  *)
+    printf 'unexpected AWS CLI call: %s\n' "$*" >&2
+    exit 64
+    ;;
+esac
