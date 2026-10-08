@@ -162,6 +162,18 @@ assert_bucket_policy() {
       ] | sort)
     )] | length) == 1 and
     ([.Statement[] | select(
+      .Sid == "DenyUnexpectedPrincipals" and
+      .Effect == "Deny" and
+      .Principal == "*" and
+      .Action == "s3:*" and
+      (.Resource | sort) == ([
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an",
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/*"
+      ] | sort) and
+      .Condition.ArnNotEquals."aws:PrincipalArn" ==
+        "arn:aws:iam::123456789012:role/RivetOperator"
+    )] | length) == 1 and
+    ([.Statement[] | select(
       .Sid == "DenyStateDeletion" and
       .Effect == "Deny" and
       .Principal == "*" and

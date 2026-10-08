@@ -61,10 +61,16 @@ if [[ "$confirmation" != "$state_bucket" ]]; then
 fi
 
 ensure_state_bucket "$state_bucket" "$account_id" "$aws_region"
-configure_state_bucket "$state_bucket" "$account_id" "$aws_region" "$state_key"
+configure_state_bucket \
+  "$state_bucket" \
+  "$account_id" \
+  "$aws_region" \
+  "$state_key" \
+  "$operator_role_arn"
 verify_state_bucket_core_controls "$state_bucket" "$account_id" "$aws_region"
 verify_state_bucket_metadata_controls \
   "$state_bucket" \
   "$account_id" \
   "$aws_region" \
-  "$state_key"
+  "$state_key" \
+  "$operator_role_arn"

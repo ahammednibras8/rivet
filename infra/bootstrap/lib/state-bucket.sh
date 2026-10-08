@@ -47,6 +47,7 @@ configure_state_bucket() {
   local region="$3"
   local state_object_key="$4"
   local bucket_policy
+  local allowed_operator_role_arn="$5"
 
   aws s3api put-bucket-ownership-controls \
     --bucket "$bucket" \
@@ -89,7 +90,12 @@ configure_state_bucket() {
       'Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=phase-1/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}]' \
     --region "$region" || return $?
 
-  bucket_policy="$(render_state_bucket_policy "$bucket" "$state_object_key")" || return $?
+  bucket_policy="$(
+    render_state_bucket_policy \
+      "$bucket" \
+      "$state_object_key" \
+      "$allowed_operator_role_arn"
+  )" || return $?
 
   aws s3api put-bucket-policy \
     --bucket "$bucket" \
@@ -173,6 +179,7 @@ verify_state_bucket_metadata_controls() {
   local expected_owner="$2"
   local region="$3"
   local state_object_key="$4"
+  local allowed_operator_role_arn="$5"
   local tags
   local lifecycle_matches
   local expected_policy
@@ -210,7 +217,10 @@ verify_state_bucket_metadata_controls() {
   )" || return $?
 
   expected_policy="$(
-    render_state_bucket_policy "$bucket" "$state_object_key"
+    render_state_bucket_policy \
+      "$bucket" \
+      "$state_object_key" \
+      "$allowed_operator_role_arn"
   )" || return $?
 
   expected_policy_canonical="$(

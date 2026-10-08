@@ -3,6 +3,7 @@
 render_state_bucket_policy() {
   local bucket="$1"
   local state_key="$2"
+  local allowed_operator_role_arn="$3"
 
   cat <<EOF
 {
@@ -20,6 +21,21 @@ render_state_bucket_policy() {
       "Condition": {
         "Bool": {
           "aws:SecureTransport": "false"
+        }
+      }
+    },
+    {
+      "Sid": "DenyUnexpectedPrincipals",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::${bucket}",
+        "arn:aws:s3:::${bucket}/*"
+      ],
+      "Condition": {
+        "ArnNotEquals": {
+          "aws:PrincipalArn": "${allowed_operator_role_arn}"
         }
       }
     },
