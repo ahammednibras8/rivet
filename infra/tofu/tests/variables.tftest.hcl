@@ -99,6 +99,51 @@ run "accepts_valid_operator_inputs" {
     )
     error_message = "The public firewall must expose only SSH to the operator's single IPv4 address."
   }
+
+  assert {
+    condition = (
+      aws_budgets_budget.workspace.name == "rivet-monthly-cost" &&
+      aws_budgets_budget.workspace.budget_type == "COST" &&
+      aws_budgets_budget.workspace.limit_amount == "30" &&
+      aws_budgets_budget.workspace.limit_unit == "USD" &&
+      aws_budgets_budget.workspace.time_unit == "MONTHLY" &&
+      one(aws_budgets_budget.workspace.cost_types).include_tax == true &&
+      length(aws_budgets_budget.workspace.cost_filter) == 0
+    )
+    error_message = "The account-wide monthly budget must include tax and enforce the USD 30 governance limit."
+  }
+
+  assert {
+    condition = (
+      length(aws_budgets_budget.workspace.notification) == 3 &&
+      contains([
+        for alert in aws_budgets_budget.workspace.notification :
+        "${alert.notification_type}:${alert.threshold}"
+      ], "ACTUAL:80") &&
+      contains([
+        for alert in aws_budgets_budget.workspace.notification :
+        "${alert.notification_type}:${alert.threshold}"
+      ], "FORECASTED:100") &&
+      contains([
+        for alert in aws_budgets_budget.workspace.notification :
+        "${alert.notification_type}:${alert.threshold}"
+      ], "ACTUAL:100") &&
+      alltrue([
+        for alert in aws_budgets_budget.workspace.notification :
+        alert.comparison_operator == "GREATER_THAN" &&
+        alert.threshold_type == "PERCENTAGE"
+      ])
+    )
+    error_message = "The budget must define the accepted actual and forecasted percentage alerts."
+  }
+
+  assert {
+    condition = nonsensitive(alltrue([
+      for alert in aws_budgets_budget.workspace.notification :
+      length(alert.subscriber_email_addresses) == 1
+    ]))
+    error_message = "Every budget alert must have exactly one private email subscriber."
+  }
 }
 
 run "rejects_unrestricted_ssh" {
