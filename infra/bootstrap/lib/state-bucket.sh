@@ -80,14 +80,14 @@ configure_state_bucket() {
     --bucket "$bucket" \
     --expected-bucket-owner "$expected_owner" \
     --tagging \
-      'TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Phase,Value=phase-1},{Key=Project,Value=Rivet}]' \
+      'TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Project,Value=Rivet},{Key=Workspace,Value=primary}]' \
     --region "$region" || return $?
 
   aws s3api put-bucket-lifecycle-configuration \
     --bucket "$bucket" \
     --expected-bucket-owner "$expected_owner" \
     --lifecycle-configuration \
-      'Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=phase-1/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}]' \
+      'Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=rivet/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}]' \
     --region "$region" || return $?
 
   bucket_policy="$(
@@ -203,7 +203,7 @@ verify_state_bucket_metadata_controls() {
       --bucket "$bucket" \
       --expected-bucket-owner "$expected_owner" \
       --region "$region" \
-      --query 'length(Rules[?ID==`LimitNoncurrentStateAndLockVersions` && Status==`Enabled` && Filter.Prefix==`phase-1/` && NoncurrentVersionExpiration.NoncurrentDays==`90` && NoncurrentVersionExpiration.NewerNoncurrentVersions==`10` && Expiration.ExpiredObjectDeleteMarker==`true`])' \
+      --query 'length(Rules[?ID==`LimitNoncurrentStateAndLockVersions` && Status==`Enabled` && Filter.Prefix==`rivet/` && NoncurrentVersionExpiration.NoncurrentDays==`90` && NoncurrentVersionExpiration.NewerNoncurrentVersions==`10` && Expiration.ExpiredObjectDeleteMarker==`true`])' \
       --output text
   )" || return $?
 
@@ -231,7 +231,7 @@ verify_state_bucket_metadata_controls() {
     printf '%s' "$installed_policy" | jq --sort-keys --compact-output .
   )" || return $?
 
-  if [[ "$tags" != $'ManagedBy\tAWSCLI\nPhase\tphase-1\nProject\tRivet' ]]; then
+  if [[ "$tags" != $'ManagedBy\tAWSCLI\nProject\tRivet\nWorkspace\tprimary' ]]; then
     printf 'error: state bucket tags do not match the required set\n' >&2
     return 1
   fi

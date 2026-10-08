@@ -28,7 +28,7 @@ variable "operator_ssh_public_key" {
 }
 
 variable "budget_notification_email" {
-  description = "Private email address that receives Phase 1 AWS budget alerts."
+  description = "Private email address that receives Rivet AWS budget alerts."
   type        = string
   nullable    = false
   sensitive   = true

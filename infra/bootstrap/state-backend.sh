@@ -14,7 +14,7 @@ source "${script_directory}/lib/state-bucket.sh"
 
 readonly aws_region="ap-south-1"
 readonly bucket_prefix="rivet-tofu-state"
-readonly state_key="phase-1/rivet.tfstate"
+readonly state_key="rivet/infrastructure.tfstate"
 readonly action="${1:-plan}"
 
 case "$action" in

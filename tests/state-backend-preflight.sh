@@ -29,7 +29,7 @@ fake_ownership=BucketOwnerEnforced
 fake_public_access='True\tTrue\tTrue\tTrue'
 fake_encryption=AES256
 fake_versioning=Enabled
-fake_tags='ManagedBy\tAWSCLI\nPhase\tphase-1\nProject\tRivet'
+fake_tags='ManagedBy\tAWSCLI\nProject\tRivet\nWorkspace\tprimary'
 fake_lifecycle_matches=1
 fake_installed_policy=""
 
@@ -124,8 +124,8 @@ assert_protection_calls() {
   assert_log_contains 'Status=Enabled'
   assert_log_contains 's3api put-bucket-tagging'
   assert_log_contains 'Key=ManagedBy,Value=AWSCLI'
-  assert_log_contains 'Key=Phase,Value=phase-1'
   assert_log_contains 'Key=Project,Value=Rivet'
+  assert_log_contains 'Key=Workspace,Value=primary'
   assert_log_contains 's3api put-bucket-lifecycle-configuration'
   assert_log_contains 'NoncurrentDays=90,NewerNoncurrentVersions=10'
   assert_log_contains 'ExpiredObjectDeleteMarker=true'
@@ -178,7 +178,7 @@ assert_bucket_policy() {
       .Effect == "Deny" and
       .Principal == "*" and
       (.Action | sort) == (["s3:DeleteObject", "s3:DeleteObjectVersion"] | sort) and
-      .Resource == "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/phase-1/rivet.tfstate"
+      .Resource == "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/rivet/infrastructure.tfstate"
     )] | length) == 1 and
     ([.. | strings | select(contains("tflock"))] | length) == 0
   ' "$case_policy_file" >/dev/null || fail 'rendered bucket policy is unsafe'
@@ -255,12 +255,12 @@ assert_contains 'error: bucket versioning is not enabled'
 
 fake_versioning=Enabled
 
-fake_tags='ManagedBy\tAWSCLI\nPhase\tphase-1'
+fake_tags='ManagedBy\tAWSCLI\nProject\tRivet'
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an
 assert_status 1
 assert_contains 'error: state bucket tags do not match the required set'
 
-fake_tags='ManagedBy\tAWSCLI\nPhase\tphase-1\nProject\tRivet'
+fake_tags='ManagedBy\tAWSCLI\nProject\tRivet\nWorkspace\tprimary'
 fake_lifecycle_matches=0
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an
 assert_status 1

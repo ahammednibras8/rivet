@@ -64,10 +64,10 @@ case "$*" in
   's3api put-bucket-versioning --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --versioning-configuration Status=Enabled --region ap-south-1')
     [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-versioning" ]] || exit 71
     ;;
-  's3api put-bucket-tagging --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --tagging TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Phase,Value=phase-1},{Key=Project,Value=Rivet}] --region ap-south-1')
+  's3api put-bucket-tagging --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --tagging TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Project,Value=Rivet},{Key=Workspace,Value=primary}] --region ap-south-1')
     [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-tagging" ]] || exit 71
     ;;
-  's3api put-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --lifecycle-configuration Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=phase-1/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}] --region ap-south-1')
+  's3api put-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --lifecycle-configuration Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=rivet/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}] --region ap-south-1')
     [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-lifecycle-configuration" ]] || exit 71
     ;;
   's3api get-bucket-ownership-controls --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query OwnershipControls.Rules[0].ObjectOwnership --output text')
@@ -83,9 +83,9 @@ case "$*" in
     printf '%s\n' "${FAKE_VERSIONING:-Enabled}"
     ;;
   's3api get-bucket-tagging --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query sort_by(TagSet, &Key)[].[Key,Value] --output text')
-    printf '%b\n' "${FAKE_TAGS:-ManagedBy\\tAWSCLI\\nPhase\\tphase-1\\nProject\\tRivet}"
+    printf '%b\n' "${FAKE_TAGS:-ManagedBy\\tAWSCLI\\nProject\\tRivet\\nWorkspace\\tprimary}"
     ;;
-  's3api get-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query length(Rules[?ID==`LimitNoncurrentStateAndLockVersions` && Status==`Enabled` && Filter.Prefix==`phase-1/` && NoncurrentVersionExpiration.NoncurrentDays==`90` && NoncurrentVersionExpiration.NewerNoncurrentVersions==`10` && Expiration.ExpiredObjectDeleteMarker==`true`]) --output text')
+  's3api get-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query length(Rules[?ID==`LimitNoncurrentStateAndLockVersions` && Status==`Enabled` && Filter.Prefix==`rivet/` && NoncurrentVersionExpiration.NoncurrentDays==`90` && NoncurrentVersionExpiration.NewerNoncurrentVersions==`10` && Expiration.ExpiredObjectDeleteMarker==`true`]) --output text')
     printf '%s\n' "${FAKE_LIFECYCLE_MATCHES:-1}"
     ;;
   's3api get-bucket-policy --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query Policy --output text')
