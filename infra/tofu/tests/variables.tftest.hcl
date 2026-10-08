@@ -68,6 +68,21 @@ run "accepts_valid_operator_inputs" {
     condition     = aws_lightsail_instance.workspace.tags.Name == "rivet-workspace"
     error_message = "The Lightsail instance must carry its stable Name tag."
   }
+
+  assert {
+    condition     = aws_lightsail_static_ip.workspace.name == "rivet-workspace-ip"
+    error_message = "The Lightsail static IP must use the stable workspace name."
+  }
+
+  assert {
+    condition = (
+      aws_lightsail_static_ip_attachment.workspace.static_ip_name ==
+      aws_lightsail_static_ip.workspace.name &&
+      aws_lightsail_static_ip_attachment.workspace.instance_name ==
+      aws_lightsail_instance.workspace.name
+    )
+    error_message = "The protected static IP must attach to the Rivet workspace instance."
+  }
 }
 
 run "rejects_unrestricted_ssh" {

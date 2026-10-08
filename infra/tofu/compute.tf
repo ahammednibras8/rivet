@@ -23,3 +23,16 @@ resource "aws_lightsail_instance" "workspace" {
     prevent_destroy = true
   }
 }
+
+resource "aws_lightsail_static_ip" "workspace" {
+  name = local.static_ip_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_lightsail_static_ip_attachment" "workspace" {
+  static_ip_name = aws_lightsail_static_ip.workspace.name
+  instance_name  = aws_lightsail_instance.workspace.name
+}
