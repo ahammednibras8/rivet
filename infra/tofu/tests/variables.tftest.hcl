@@ -23,6 +23,19 @@ run "accepts_valid_operator_inputs" {
     condition     = local.static_ip_name == "rivet-workspace-ip"
     error_message = "The static IP must use the stable workspace name."
   }
+
+  assert {
+    condition     = aws_lightsail_key_pair.operator.name == "rivet-operator"
+    error_message = "The Lightsail key pair must use the stable operator name."
+  }
+
+  assert {
+    condition = (
+      aws_lightsail_key_pair.operator.public_key ==
+      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7 rivet-test"
+    )
+    error_message = "The Lightsail key pair must contain only the supplied public key."
+  }
 }
 
 run "rejects_unrestricted_ssh" {
