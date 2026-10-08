@@ -4,6 +4,7 @@ set -euo pipefail
 
 readonly aws_region="ap-south-1"
 readonly bucket_prefix="rivet-tofu-state"
+readonly state_key="phase-1/rivet.tfstate"
 readonly action="${1:-plan}"
 
 case "$action" in
@@ -130,6 +131,54 @@ aws s3api put-bucket-tagging \
   --expected-bucket-owner "$account_id" \
   --tagging \
     'TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Phase,Value=phase-1},{Key=Project,Value=Rivet}]' \
+  --region "$aws_region"
+
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket "$state_bucket" \
+  --expected-bucket-owner "$account_id" \
+  --lifecycle-configuration \
+    'Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=phase-1/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}]' \
+  --region "$aws_region"
+
+bucket_policy="$(
+  cat <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyInsecureTransport",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::${state_bucket}",
+        "arn:aws:s3:::${state_bucket}/*"
+      ],
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false"
+        }
+      }
+    },
+    {
+      "Sid": "DenyStateDeletion",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": [
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion"
+      ],
+      "Resource": "arn:aws:s3:::${state_bucket}/${state_key}"
+    }
+  ]
+}
+EOF
+)"
+
+aws s3api put-bucket-policy \
+  --bucket "$state_bucket" \
+  --expected-bucket-owner "$account_id" \
+  --policy "$bucket_policy" \
   --region "$aws_region"
 
 printf 'State bucket protection settings converged.\n'

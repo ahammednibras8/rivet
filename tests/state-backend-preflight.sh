@@ -19,6 +19,7 @@ fake_aws_status=0
 fake_bucket_exists=false
 fake_create_status=0
 fake_bucket_region=ap-south-1
+fake_fail_operation=""
 
 run_case() {
   local action="$1"
@@ -38,6 +39,7 @@ run_case() {
       FAKE_BUCKET_EXISTS="$fake_bucket_exists" \
       FAKE_CREATE_STATUS="$fake_create_status" \
       FAKE_BUCKET_REGION="$fake_bucket_region" \
+      FAKE_FAIL_OPERATION="$fake_fail_operation" \
       "$subject" "$action" <<<"$confirmation" 2>&1
   )"
   case_status=$?
@@ -86,6 +88,21 @@ assert_log_not_contains() {
     fail "expected AWS log not to contain '${unexpected}', got: ${case_log}"
 }
 
+assert_protection_calls() {
+  assert_log_contains 's3api put-bucket-ownership-controls'
+  assert_log_contains 'ObjectOwnership=BucketOwnerEnforced'
+  assert_log_contains 's3api put-public-access-block'
+  assert_log_contains 'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true'
+  assert_log_contains 's3api put-bucket-encryption'
+  assert_log_contains 'SSEAlgorithm=AES256'
+  assert_log_contains 's3api put-bucket-versioning'
+  assert_log_contains 'Status=Enabled'
+  assert_log_contains 's3api put-bucket-tagging'
+  assert_log_contains 'Key=ManagedBy,Value=AWSCLI'
+  assert_log_contains 'Key=Phase,Value=phase-1'
+  assert_log_contains 'Key=Project,Value=Rivet'
+}
+
 run_case plan
 assert_status 0
 assert_contains 'AWS temporary-role preflight passed.'
@@ -111,6 +128,8 @@ assert_contains 'State bucket ownership and region verified.'
 assert_log_contains 's3api head-bucket'
 assert_log_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
+assert_contains 'State bucket protection settings converged.'
+assert_protection_calls
 
 fake_bucket_exists=true
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an
@@ -118,7 +137,18 @@ assert_status 0
 assert_contains 'State bucket already exists.'
 assert_log_not_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
+assert_protection_calls
 
+fake_fail_operation=put-public-access-block
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 71
+assert_log_contains 's3api put-bucket-ownership-controls'
+assert_log_contains 's3api put-public-access-block'
+assert_log_not_contains 's3api put-bucket-encryption'
+assert_log_not_contains 's3api put-bucket-versioning'
+assert_log_not_contains 's3api put-bucket-tagging'
+
+fake_fail_operation=""
 fake_bucket_exists=false
 fake_create_status=73
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an
