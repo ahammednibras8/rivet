@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly expected_arguments="sts get-caller-identity --region ap-south-1 --query [Account,Arn] --output text"
+
+if [[ "$*" != "$expected_arguments" ]]; then
+  printf 'unexpected AWS CLI call: %s\n' "$*" >&2
+  exit 64
+fi
+
+if [[ "${FAKE_AWS_STATUS:-0}" != "0" ]]; then
+  printf 'simulated AWS authentication failure\n' >&2
+  exit "$FAKE_AWS_STATUS"
+fi
+
+printf '%b\n' "${FAKE_AWS_IDENTITY:?FAKE_AWS_IDENTITY is required}"
