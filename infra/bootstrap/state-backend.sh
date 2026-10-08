@@ -33,12 +33,17 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
-account_id="$(require_temporary_aws_account_id "$aws_region")"
+aws_identity="$(require_temporary_aws_identity "$aws_region")"
+readonly aws_identity
+
+IFS=$'\t' read -r account_id operator_role_arn <<<"$aws_identity"
 readonly account_id
+readonly operator_role_arn
 
 readonly state_bucket="${bucket_prefix}-${account_id}-${aws_region}-an"
 
 printf 'AWS temporary-role preflight passed.\n'
+printf 'Operator role: %s\n' "$operator_role_arn"
 printf 'Target region: %s\n' "$aws_region"
 printf 'Target state bucket: %s\n' "$state_bucket"
 if [[ "$action" == "plan" ]]; then

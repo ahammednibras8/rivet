@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
-require_temporary_aws_account_id() {
+require_temporary_aws_identity() {
   local region="$1"
   local identity
   local account_id
   local caller_arn
+  local role_name
+  local role_arn
 
   if ! command -v aws >/dev/null 2>&1; then
     printf 'error: AWS CLI v2 is required\n' >&2
@@ -25,14 +27,25 @@ require_temporary_aws_account_id() {
     return 1
   fi
 
-  case "$caller_arn" in
-    arn:aws:sts::*:assumed-role/*)
-      ;;
-    *)
-      printf 'error: use temporary credentials from an assumed IAM role\n' >&2
-      return 1
-      ;;
-  esac
+  if [[ "$caller_arn" =~ ^arn:aws:sts::${account_id}:assumed-role/([^/]+)/[^/]+$ ]]; then
+    role_name="${BASH_REMATCH[1]}"
+  else
+    printf 'error: use temporary credentials from an assumed IAM role\n' >&2
+    return 1
+  fi
 
-  printf '%s\n' "$account_id"
+  role_arn="$(
+    aws iam get-role \
+      --role-name "$role_name" \
+      --region "$region" \
+      --query Role.Arn \
+      --output text
+  )" || return $?
+
+  if [[ ! "$role_arn" =~ ^arn:aws:iam::${account_id}:role/.+ ]]; then
+    printf 'error: AWS returned an invalid operator role ARN\n' >&2
+    return 1
+  fi
+
+  printf '%s\t%s\n' "$account_id" "$role_arn"
 }
