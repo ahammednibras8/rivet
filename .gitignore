@@ -1,1 +1,42 @@
 temp/
+
+
+# OpenTofu local data, state, plans, and crash output
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local OpenTofu variables and CLI credentials
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.json.example
+.tofurc
+tofu.rc
+.terraformrc
+terraform.rc
+*.tfrc
+*.tfrc.json
+
+# Local credentials and private keys
+.env
+.env.*
+!.env.example
+.aws/
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Ansible local and sensitive runtime files
+*.retry
+ansible/inventory/local.*
+ansible/.vault-password*
