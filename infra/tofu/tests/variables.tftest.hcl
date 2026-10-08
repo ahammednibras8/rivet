@@ -83,6 +83,22 @@ run "accepts_valid_operator_inputs" {
     )
     error_message = "The protected static IP must attach to the Rivet workspace instance."
   }
+
+  assert {
+    condition = (
+      aws_lightsail_instance_public_ports.workspace.instance_name ==
+      aws_lightsail_instance.workspace.name &&
+      length(aws_lightsail_instance_public_ports.workspace.port_info) == 1 &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).protocol == "tcp" &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).from_port == 22 &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).to_port == 22 &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).cidrs ==
+      toset(["203.0.113.10/32"]) &&
+      length(one(aws_lightsail_instance_public_ports.workspace.port_info).ipv6_cidrs) == 0 &&
+      length(one(aws_lightsail_instance_public_ports.workspace.port_info).cidr_list_aliases) == 0
+    )
+    error_message = "The public firewall must expose only SSH to the operator's single IPv4 address."
+  }
 }
 
 run "rejects_unrestricted_ssh" {
