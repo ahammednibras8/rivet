@@ -36,6 +36,38 @@ run "accepts_valid_operator_inputs" {
     )
     error_message = "The Lightsail key pair must contain only the supplied public key."
   }
+
+  assert {
+    condition = (
+      aws_lightsail_instance.workspace.name == "rivet-workspace" &&
+      aws_lightsail_instance.workspace.availability_zone == "ap-south-1a" &&
+      aws_lightsail_instance.workspace.blueprint_id == "ubuntu_24_04" &&
+      aws_lightsail_instance.workspace.bundle_id == "medium_3_0" &&
+      aws_lightsail_instance.workspace.ip_address_type == "ipv4"
+    )
+    error_message = "The Lightsail instance must match the accepted location, image, size, and address type."
+  }
+
+  assert {
+    condition = (
+      aws_lightsail_instance.workspace.key_pair_name ==
+      aws_lightsail_key_pair.operator.name
+    )
+    error_message = "The Lightsail instance must use the managed operator key pair."
+  }
+
+  assert {
+    condition = (
+      yamldecode(aws_lightsail_instance.workspace.user_data).users[1].name ==
+      "rivet-admin"
+    )
+    error_message = "The Lightsail instance must receive the reviewed cloud-init template."
+  }
+
+  assert {
+    condition     = aws_lightsail_instance.workspace.tags.Name == "rivet-workspace"
+    error_message = "The Lightsail instance must carry its stable Name tag."
+  }
 }
 
 run "rejects_unrestricted_ssh" {
