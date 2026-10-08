@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly script_directory
+
+# shellcheck source=infra/bootstrap/lib/aws-session.sh
+source "${script_directory}/lib/aws-session.sh"
+
 readonly aws_region="ap-south-1"
 readonly bucket_prefix="rivet-tofu-state"
 readonly state_key="phase-1/rivet.tfstate"
@@ -18,33 +24,8 @@ esac
 
 export AWS_PAGER=""
 
-if ! command -v aws >/dev/null 2>&1; then
-  printf 'error: AWS CLI v2 is required\n' >&2
-  exit 1
-fi
-
-identity="$(
-  aws sts get-caller-identity \
-    --region "$aws_region" \
-    --query '[Account,Arn]' \
-    --output text
-)"
-
-IFS=$'\t' read -r account_id caller_arn <<<"$identity"
-
-if [[ ! "$account_id" =~ ^[0-9]{12}$ ]]; then
-  printf 'error: AWS returned an invalid account ID\n' >&2
-  exit 1
-fi
-
-case "$caller_arn" in
-  arn:aws:sts::*:assumed-role/*)
-    ;;
-  *)
-    printf 'error: use temporary credentials from an assumed IAM role\n' >&2
-    exit 1
-    ;;
-esac
+account_id="$(require_temporary_aws_account_id "$aws_region")"
+readonly account_id
 
 readonly state_bucket="${bucket_prefix}-${account_id}-${aws_region}-an"
 

@@ -13,6 +13,7 @@ trap 'rm -rf "$test_directory"' EXIT
 case_output=""
 case_status=0
 case_log=""
+case_policy_file=""
 case_number=0
 fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/RivetOperator/test-session'
 fake_aws_status=0
@@ -25,9 +26,11 @@ run_case() {
   local action="$1"
   local confirmation="${2:-}"
   local log_file
+  local policy_file
 
   case_number=$((case_number + 1))
   log_file="${test_directory}/aws-${case_number}.log"
+  policy_file="${test_directory}/policy-${case_number}.json"
   : >"$log_file"
 
   set +e
@@ -36,6 +39,7 @@ run_case() {
       FAKE_AWS_IDENTITY="$fake_identity" \
       FAKE_AWS_STATUS="$fake_aws_status" \
       FAKE_AWS_LOG="$log_file" \
+      FAKE_POLICY_FILE="$policy_file" \
       FAKE_BUCKET_EXISTS="$fake_bucket_exists" \
       FAKE_CREATE_STATUS="$fake_create_status" \
       FAKE_BUCKET_REGION="$fake_bucket_region" \
@@ -46,6 +50,7 @@ run_case() {
   set -e
 
   case_log="$(<"$log_file")"
+  case_policy_file="$policy_file"
 }
 
 fail() {
@@ -101,6 +106,37 @@ assert_protection_calls() {
   assert_log_contains 'Key=ManagedBy,Value=AWSCLI'
   assert_log_contains 'Key=Phase,Value=phase-1'
   assert_log_contains 'Key=Project,Value=Rivet'
+  assert_log_contains 's3api put-bucket-lifecycle-configuration'
+  assert_log_contains 'NoncurrentDays=90,NewerNoncurrentVersions=10'
+  assert_log_contains 'ExpiredObjectDeleteMarker=true'
+  assert_log_contains 's3api put-bucket-policy'
+}
+
+assert_bucket_policy() {
+  [[ -s "$case_policy_file" ]] || fail 'expected a rendered bucket policy'
+
+  jq -e '
+    .Version == "2012-10-17" and
+    ([.Statement[] | select(
+      .Sid == "DenyInsecureTransport" and
+      .Effect == "Deny" and
+      .Principal == "*" and
+      .Action == "s3:*" and
+      .Condition.Bool."aws:SecureTransport" == "false" and
+      (.Resource | sort) == ([
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an",
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/*"
+      ] | sort)
+    )] | length) == 1 and
+    ([.Statement[] | select(
+      .Sid == "DenyStateDeletion" and
+      .Effect == "Deny" and
+      .Principal == "*" and
+      (.Action | sort) == (["s3:DeleteObject", "s3:DeleteObjectVersion"] | sort) and
+      .Resource == "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/phase-1/rivet.tfstate"
+    )] | length) == 1 and
+    ([.. | strings | select(contains("tflock"))] | length) == 0
+  ' "$case_policy_file" >/dev/null || fail 'rendered bucket policy is unsafe'
 }
 
 run_case plan
@@ -130,6 +166,7 @@ assert_log_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
 assert_contains 'State bucket protection settings converged.'
 assert_protection_calls
+assert_bucket_policy
 
 fake_bucket_exists=true
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an
@@ -138,6 +175,7 @@ assert_contains 'State bucket already exists.'
 assert_log_not_contains 's3api create-bucket'
 assert_log_contains 's3api get-bucket-location'
 assert_protection_calls
+assert_bucket_policy
 
 fake_fail_operation=put-public-access-block
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an

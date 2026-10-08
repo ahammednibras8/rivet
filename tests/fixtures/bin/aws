@@ -5,6 +5,22 @@ set -euo pipefail
 : "${FAKE_AWS_LOG:?FAKE_AWS_LOG is required}"
 printf '%s\n' "$*" >>"$FAKE_AWS_LOG"
 
+if [[ "${1:-}" == "s3api" && "${2:-}" == "put-bucket-policy" ]]; then
+  if [[ "$#" != "10" || "$3" != "--bucket" ||
+    "$4" != "rivet-tofu-state-123456789012-ap-south-1-an" ||
+    "$5" != "--expected-bucket-owner" || "$6" != "123456789012" ||
+    "$7" != "--policy" || "$9" != "--region" ||
+    "${10}" != "ap-south-1" ]]; then
+    printf 'unexpected put-bucket-policy arguments\n' >&2
+    exit 64
+  fi
+
+  : "${FAKE_POLICY_FILE:?FAKE_POLICY_FILE is required}"
+  printf '%s\n' "$8" >"$FAKE_POLICY_FILE"
+  [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-policy" ]] || exit 71
+  exit 0
+fi
+
 case "$*" in
   'sts get-caller-identity --region ap-south-1 --query [Account,Arn] --output text')
     if [[ "${FAKE_AWS_STATUS:-0}" != "0" ]]; then
@@ -40,6 +56,9 @@ case "$*" in
     ;;
   's3api put-bucket-tagging --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --tagging TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Phase,Value=phase-1},{Key=Project,Value=Rivet}] --region ap-south-1')
     [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-tagging" ]] || exit 71
+    ;;
+  's3api put-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --lifecycle-configuration Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=phase-1/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}] --region ap-south-1')
+    [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-lifecycle-configuration" ]] || exit 71
     ;;
   *)
     printf 'unexpected AWS CLI call: %s\n' "$*" >&2
