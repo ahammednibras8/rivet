@@ -1,0 +1,9 @@
+---
+- name: Validate the SSH hardening role
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+
+  roles:
+    - role: ssh_hardening
