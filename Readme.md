@@ -9,8 +9,9 @@ providers, and development tools on a persistent cloud host. The existing T3
 Code mobile app connects to that host, and the developer continues the same
 threads, worktrees, tests, diffs, and pull requests from anywhere.
 
-> **Project status:** Product-definition and Phase 1 bootstrap. No application
-> or infrastructure code has been scaffolded yet.
+> **Project status:** The cloud foundation is implemented and ready for its
+> first reviewed AWS provisioning. T3 Code installation and the mobile
+> connection remain future implementation issues.
 
 ## The problem
 
@@ -278,6 +279,10 @@ rationale, security controls, acceptance gates, or review triggers.
 | Host lifecycle | Keep the Phase 1 host always on; do not implement routine suspend/resume | [ADR-0002](docs/adr/0002-keep-the-phase-1-host-always-on.md) |
 | Remote access | Use T3 Connect as the only Phase 1 route; expose no public T3, HTTP, or HTTPS listener | [ADR-0003](docs/adr/0003-use-t3-connect-for-phase-1-remote-access.md) |
 | Automation | Use OpenTofu with the official AWS provider for cloud resources, a private versioned and encrypted S3 backend in `ap-south-1`, minimal cloud-init for first boot, and Ansible Core for host configuration | [ADR-0004](docs/adr/0004-use-opentofu-and-ansible-for-phase-1-automation.md) |
+
+The [cloud-foundation provisioning runbook](docs/runbooks/provision-cloud-foundation.md)
+is the operator entry point for the reviewed backend, plan, apply, convergence,
+and verification workflow.
 
 Implementation issues must still resolve these choices with security and test
 evidence:
