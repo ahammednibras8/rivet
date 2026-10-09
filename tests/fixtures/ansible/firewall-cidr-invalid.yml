@@ -1,0 +1,14 @@
+---
+- name: Verify an unapproved operator CIDR fails
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    rivet_operator_ipv4_cidr: 198.51.100.0/24
+
+  tasks:
+    - name: Run the firewall input validation
+      ansible.builtin.include_role:
+        name: host_firewall
+        tasks_from: validate.yml

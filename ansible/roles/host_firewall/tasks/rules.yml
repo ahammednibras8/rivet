@@ -1,0 +1,35 @@
+---
+- name: Allow SSH from the approved operator address
+  community.general.ufw:
+    rule: allow
+    direction: in
+    proto: tcp
+    from_ip: "{{ rivet_operator_ipv4_cidr }}"
+    to_port: "22"
+    comment: Rivet administrative SSH
+
+- name: Remove unrestricted SSH access
+  community.general.ufw:
+    rule: allow
+    direction: in
+    proto: tcp
+    to_port: "22"
+    delete: true
+
+- name: Deny other incoming traffic by default
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: Allow outgoing traffic by default
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: Enable low-volume firewall logging
+  community.general.ufw:
+    logging: low
+
+- name: Enable the host firewall
+  community.general.ufw:
+    state: enabled

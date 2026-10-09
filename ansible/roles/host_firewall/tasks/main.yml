@@ -1,0 +1,6 @@
+---
+- name: Validate the operator network
+  ansible.builtin.import_tasks: validate.yml
+
+- name: Configure the host firewall
+  ansible.builtin.import_tasks: rules.yml

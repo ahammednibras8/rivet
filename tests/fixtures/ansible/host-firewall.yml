@@ -1,0 +1,12 @@
+---
+- name: Validate the host firewall role
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+
+  vars:
+    rivet_operator_ipv4_cidr: 198.51.100.42/32
+
+  roles:
+    - role: host_firewall
