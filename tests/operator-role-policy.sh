@@ -59,4 +59,58 @@ if grep -Fq '"Resource": "*"' <<<"$assume_policy"; then
   exit 1
 fi
 
-echo "The Rivet login identity and operator role have exact mutual boundaries."
+state_bucket="rivet-tofu-state-${account_id}-ap-south-1-an"
+state_key="arn:aws:s3:::${state_bucket}/rivet/infrastructure.tfstate"
+lock_key="${state_key}.tflock"
+state_policy="$(render_operator_state_policy "$account_id")"
+
+if ! jq -e \
+  --arg bucket "arn:aws:s3:::${state_bucket}" \
+  --arg state "$state_key" \
+  --arg lock "$lock_key" \
+  '. == {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ManageRivetStateBucket",
+        "Effect": "Allow",
+        "Action": [
+          "s3:CreateBucket",
+          "s3:GetBucketLocation",
+          "s3:GetBucketOwnershipControls",
+          "s3:PutBucketOwnershipControls",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:PutBucketPublicAccessBlock",
+          "s3:GetEncryptionConfiguration",
+          "s3:PutEncryptionConfiguration",
+          "s3:GetBucketVersioning",
+          "s3:PutBucketVersioning",
+          "s3:GetBucketTagging",
+          "s3:PutBucketTagging",
+          "s3:GetLifecycleConfiguration",
+          "s3:PutLifecycleConfiguration",
+          "s3:GetBucketPolicy",
+          "s3:PutBucketPolicy",
+          "s3:ListBucket"
+        ],
+        "Resource": $bucket
+      },
+      {
+        "Sid": "ReadAndWriteRivetState",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject", "s3:PutObject"],
+        "Resource": [$state, $lock]
+      },
+      {
+        "Sid": "ReleaseRivetStateLock",
+        "Effect": "Allow",
+        "Action": "s3:DeleteObject",
+        "Resource": $lock
+      }
+    ]
+  }' <<<"$state_policy" >/dev/null; then
+  echo "The operator state policy exceeds or misses its exact backend permissions" >&2
+  exit 1
+fi
+
+echo "The Rivet login, operator role, and state access policies have exact boundaries."
