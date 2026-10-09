@@ -13,3 +13,4 @@
 
   roles:
     - role: system_baseline
+      tasks_from: platform.yml
