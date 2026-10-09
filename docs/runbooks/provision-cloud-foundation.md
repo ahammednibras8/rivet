@@ -53,6 +53,14 @@ Ansible Core reports `2.21.3`, and `community.general` reports `13.4.0`.
 ## Start a temporary AWS session
 
 Authenticate using the account's approved identity-provider or role workflow.
+For an AWS Login profile backed by existing console access, use:
+
+```bash
+export AWS_PROFILE="YOUR_APPROVED_PROFILE"
+aws login --profile "$AWS_PROFILE"
+aws sts get-caller-identity --region ap-south-1
+```
+
 For an AWS IAM Identity Center profile, use:
 
 ```bash
@@ -61,7 +69,10 @@ aws sso login --profile "$AWS_PROFILE"
 aws sts get-caller-identity --region ap-south-1
 ```
 
-The returned ARN must contain `:assumed-role/`. Do not continue with a root or
+The returned ARN must contain `:assumed-role/`. An AWS Login profile can issue
+temporary credentials while still identifying its principal as an IAM user;
+that is not sufficient. Configure and select an operator-role profile whose
+source is the login profile before continuing. Do not continue with a root or
 IAM-user ARN. The bootstrap scripts repeat this check and stop on failure.
 
 ## Prepare runtime inputs
@@ -357,5 +368,7 @@ explicit approval; it is intentionally absent from this runbook.
 - [ADR-0004: OpenTofu and Ansible automation](../adr/0004-use-opentofu-and-ansible-for-phase-1-automation.md)
 - [AWS Lightsail SSH key and connection behavior](https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-ssh-in-amazon-lightsail.html)
 - [AWS CLI `get-instance-access-details`](https://docs.aws.amazon.com/cli/latest/reference/lightsail/get-instance-access-details.html)
+- [AWS CLI Login temporary credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html)
+- [AWS CLI role profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html)
 - [OpenTofu plan command](https://opentofu.org/docs/cli/commands/plan/)
 - [Ansible check and diff mode](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_checkmode.html)
