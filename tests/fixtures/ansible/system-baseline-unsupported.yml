@@ -1,0 +1,15 @@
+---
+- name: Verify an unsupported platform fails
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_facts:
+      distribution: Debian
+      distribution_release: bookworm
+      distribution_version: "12"
+      architecture: x86_64
+
+  roles:
+    - role: system_baseline

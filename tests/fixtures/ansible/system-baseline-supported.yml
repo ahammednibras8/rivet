@@ -1,0 +1,15 @@
+---
+- name: Verify the supported platform succeeds
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_facts:
+      distribution: Ubuntu
+      distribution_release: noble
+      distribution_version: "24.04.3"
+      architecture: x86_64
+
+  roles:
+    - role: system_baseline
