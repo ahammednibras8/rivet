@@ -1,0 +1,20 @@
+---
+- name: Validate the operator SSH public key
+  ansible.builtin.import_tasks: validate_ssh_key.yml
+
+- name: Maintain administrator SSH directory
+  ansible.builtin.file:
+    path: /home/rivet-admin/.ssh
+    state: directory
+    owner: rivet-admin
+    group: rivet-admin
+    mode: "0700"
+
+- name: Maintain operator authorized key
+  ansible.builtin.copy:
+    content: "{{ rivet_operator_ssh_public_key }}\n"
+    dest: /home/rivet-admin/.ssh/authorized_keys
+    owner: rivet-admin
+    group: rivet-admin
+    mode: "0600"
+    validate: /usr/bin/ssh-keygen -l -f %s

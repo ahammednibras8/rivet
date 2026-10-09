@@ -48,7 +48,10 @@ expected_users='---
     owner: root
     group: root
     mode: "0440"
-    validate: /usr/sbin/visudo -cf %s'
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Maintain administrative SSH access
+  ansible.builtin.import_tasks: ssh_access.yml'
 
 if [[ "$(<"${users_file}")" != "${expected_users}" ]]; then
   echo "Unexpected service-account policy in ${users_file}" >&2
