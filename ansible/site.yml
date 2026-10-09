@@ -1,0 +1,11 @@
+---
+- name: Configure the Rivet workspace
+  hosts: rivet_workspace
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+
+  roles:
+    - role: system_baseline
+    - role: ssh_hardening
+    - role: host_firewall
