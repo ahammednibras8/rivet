@@ -6,6 +6,8 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly repository_root
 readonly subject="${repository_root}/infra/bootstrap/state-backend.sh"
 readonly fake_bin="${repository_root}/tests/fixtures/bin"
+# shellcheck source=infra/bootstrap/lib/state-bucket-policy.sh
+source "${repository_root}/infra/bootstrap/lib/state-bucket-policy.sh"
 jq_directory="$(dirname "$(command -v jq)")"
 readonly jq_directory
 test_directory="$(mktemp -d "${TMPDIR:-/tmp}/rivet-state-backend-test.XXXXXX")"
@@ -43,6 +45,14 @@ run_case() {
   log_file="${test_directory}/aws-${case_number}.log"
   policy_file="${test_directory}/policy-${case_number}.json"
   : >"$log_file"
+
+  if [[ "$action" == "verify" ]]; then
+    render_state_bucket_policy \
+      'rivet-tofu-state-123456789012-ap-south-1-an' \
+      'rivet/infrastructure.tfstate' \
+      'arn:aws:iam::123456789012:role/RivetOperator' \
+      >"$policy_file"
+  fi
 
   set +e
   case_output="$(
@@ -192,6 +202,24 @@ assert_contains 'Target region: ap-south-1'
 assert_contains 'Target state bucket: rivet-tofu-state-123456789012-ap-south-1-an'
 assert_contains 'No AWS resources were changed.'
 assert_log_not_contains 's3api'
+
+run_case verify
+assert_status 0
+assert_contains 'State bucket core protection settings verified.'
+assert_contains 'State bucket tags, retention, and policy verified.'
+assert_contains 'State backend verification passed.'
+assert_core_verification_calls
+assert_metadata_verification_calls
+assert_log_not_contains 's3api head-bucket'
+assert_log_not_contains 's3api create-bucket'
+assert_log_not_contains 's3api put-'
+
+fake_encryption=aws:kms
+run_case verify
+assert_status 1
+assert_contains 'error: bucket default encryption is not SSE-S3'
+assert_log_not_contains 's3api put-'
+fake_encryption=AES256
 
 run_case invalid
 assert_status 64

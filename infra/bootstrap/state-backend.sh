@@ -18,10 +18,10 @@ readonly state_key="rivet/infrastructure.tfstate"
 readonly action="${1:-plan}"
 
 case "$action" in
-  plan | apply)
+  plan | apply | verify)
     ;;
   *)
-    printf 'usage: %s [plan|apply]\n' "$0" >&2
+    printf 'usage: %s [plan|apply|verify]\n' "$0" >&2
     exit 64
     ;;
 esac
@@ -49,6 +49,21 @@ printf 'Target state bucket: %s\n' "$state_bucket"
 if [[ "$action" == "plan" ]]; then
   printf 'Plan: ensure the account-regional state bucket exists.\n'
   printf 'No AWS resources were changed.\n'
+  exit 0
+fi
+
+if [[ "$action" == "verify" ]]; then
+  verify_state_bucket_core_controls \
+    "$state_bucket" \
+    "$account_id" \
+    "$aws_region"
+  verify_state_bucket_metadata_controls \
+    "$state_bucket" \
+    "$account_id" \
+    "$aws_region" \
+    "$state_key" \
+    "$operator_role_arn"
+  printf 'State backend verification passed.\n'
   exit 0
 fi
 
