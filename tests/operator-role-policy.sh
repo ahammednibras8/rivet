@@ -37,4 +37,26 @@ if grep -Fq '"Principal": "*"' <<<"$trust_policy"; then
   exit 1
 fi
 
-echo "The operator role trusts only the dedicated Rivet login identity."
+expected_role="arn:aws:iam::${account_id}:role/rivet-operator"
+assume_policy="$(render_operator_assume_policy "$account_id")"
+
+if ! jq -e \
+  --arg role "$expected_role" \
+  '(
+    .Version == "2012-10-17" and
+    (.Statement | length) == 1 and
+    .Statement[0].Sid == "AssumeRivetOperator" and
+    .Statement[0].Effect == "Allow" and
+    .Statement[0].Action == "sts:AssumeRole" and
+    .Statement[0].Resource == $role
+  )' <<<"$assume_policy" >/dev/null; then
+  echo "The login identity must be allowed to assume only rivet-operator" >&2
+  exit 1
+fi
+
+if grep -Fq '"Resource": "*"' <<<"$assume_policy"; then
+  echo "The assume-role policy must not contain a wildcard resource" >&2
+  exit 1
+fi
+
+echo "The Rivet login identity and operator role have exact mutual boundaries."
