@@ -6,7 +6,49 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 config_file="${repo_root}/ansible/ansible.cfg"
 users_file="${repo_root}/ansible/roles/system_baseline/tasks/users.yml"
 playbook="${repo_root}/tests/fixtures/ansible/system-baseline.yml"
-expected_users=$'---\n- name: Create Rivet service group\n  ansible.builtin.group:\n    name: rivet\n    system: true\n    state: present\n\n- name: Create Rivet service account\n  ansible.builtin.user:\n    name: rivet\n    comment: Rivet service account\n    group: rivet\n    groups: ""\n    home: /home/rivet\n    shell: /bin/bash\n    create_home: true\n    system: true\n    password_lock: true\n    state: present'
+expected_users='---
+- name: Create Rivet service group
+  ansible.builtin.group:
+    name: rivet
+    system: true
+    state: present
+
+- name: Create Rivet service account
+  ansible.builtin.user:
+    name: rivet
+    comment: Rivet service account
+    group: rivet
+    groups: ""
+    home: /home/rivet
+    shell: /bin/bash
+    create_home: true
+    system: true
+    password_lock: true
+    state: present
+
+- name: Maintain Rivet administrative account
+  ansible.builtin.user:
+    name: rivet-admin
+    comment: Rivet administrator
+    groups:
+      - adm
+      - sudo
+    append: false
+    home: /home/rivet-admin
+    shell: /bin/bash
+    create_home: true
+    password_lock: true
+    state: present
+
+- name: Maintain passwordless administrative access
+  ansible.builtin.copy:
+    content: |
+      rivet-admin ALL=(ALL) NOPASSWD:ALL
+    dest: /etc/sudoers.d/rivet-admin
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s'
 
 if [[ "$(<"${users_file}")" != "${expected_users}" ]]; then
   echo "Unexpected service-account policy in ${users_file}" >&2
@@ -19,4 +61,4 @@ ANSIBLE_CONFIG="${config_file}" \
     --syntax-check \
     "${playbook}"
 
-echo "The non-root service-account policy is valid."
+echo "The administrative and non-root service-account policies are valid."
