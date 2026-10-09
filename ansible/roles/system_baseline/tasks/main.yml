@@ -7,3 +7,6 @@
 
 - name: Configure automatic security updates
   ansible.builtin.import_tasks: updates.yml
+
+- name: Manage workspace accounts
+  ansible.builtin.import_tasks: users.yml

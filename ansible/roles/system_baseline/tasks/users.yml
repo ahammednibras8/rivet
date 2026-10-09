@@ -1,0 +1,19 @@
+---
+- name: Create Rivet service group
+  ansible.builtin.group:
+    name: rivet
+    system: true
+    state: present
+
+- name: Create Rivet service account
+  ansible.builtin.user:
+    name: rivet
+    comment: Rivet service account
+    group: rivet
+    groups: ""
+    home: /home/rivet
+    shell: /bin/bash
+    create_home: true
+    system: true
+    password_lock: true
+    state: present
