@@ -1,3 +1,6 @@
 ---
 - name: Verify the workspace platform
   ansible.builtin.import_tasks: platform.yml
+
+- name: Install required workspace packages
+  ansible.builtin.import_tasks: packages.yml

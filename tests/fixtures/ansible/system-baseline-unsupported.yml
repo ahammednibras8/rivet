@@ -11,6 +11,8 @@
       distribution_version: "12"
       architecture: x86_64
 
-  roles:
-    - role: system_baseline
-      tasks_from: platform.yml
+  tasks:
+    - name: Run the platform guard
+      ansible.builtin.include_role:
+        name: system_baseline
+        tasks_from: platform.yml

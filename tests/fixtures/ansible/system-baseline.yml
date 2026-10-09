@@ -1,0 +1,9 @@
+---
+- name: Validate the complete system baseline role
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: system_baseline
