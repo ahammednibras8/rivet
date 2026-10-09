@@ -1,4 +1,5 @@
 temp/
+.venv/
 
 
 # OpenTofu local data, state, plans, and crash output
