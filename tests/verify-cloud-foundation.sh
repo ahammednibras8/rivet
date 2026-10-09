@@ -20,6 +20,7 @@ git -C "${repo_root}" ls-files -z \
 
 "${repo_root}/tests/tofu-backend-init.sh"
 "${repo_root}/tests/state-backend-preflight.sh"
+"${repo_root}/tests/operator-role-policy.sh"
 "${repo_root}/tests/ansible-version-pin.sh"
 "${repo_root}/tests/ansible-collection-pin.sh"
 "${repo_root}/tests/ansible-config.sh"
