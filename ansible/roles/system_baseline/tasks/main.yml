@@ -4,3 +4,6 @@
 
 - name: Install required workspace packages
   ansible.builtin.import_tasks: packages.yml
+
+- name: Configure automatic security updates
+  ansible.builtin.import_tasks: updates.yml
