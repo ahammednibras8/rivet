@@ -14,8 +14,9 @@ run "renders_minimal_ansible_bridge" {
     condition = toset(local.cloud_init.packages) == toset([
       "python3",
       "python3-apt",
+      "ufw",
     ])
-    error_message = "Cloud-init must install only the Ansible Python prerequisites."
+    error_message = "Cloud-init must install only the managed-node prerequisites required for Ansible check mode."
   }
 
   assert {
