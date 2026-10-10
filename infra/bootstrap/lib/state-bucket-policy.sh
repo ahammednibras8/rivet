@@ -2,7 +2,7 @@
 
 render_state_bucket_policy() {
   local bucket="$1"
-  local state_key="$2"
+  local state_object_key="$2"
   local allowed_operator_role_arn="$3"
 
   cat <<EOF
@@ -47,7 +47,7 @@ render_state_bucket_policy() {
         "s3:DeleteObject",
         "s3:DeleteObjectVersion"
       ],
-      "Resource": "arn:aws:s3:::${bucket}/${state_key}"
+      "Resource": "arn:aws:s3:::${bucket}/${state_object_key}"
     }
   ]
 }

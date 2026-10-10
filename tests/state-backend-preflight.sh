@@ -208,6 +208,7 @@ assert_status 0
 assert_contains 'State bucket core protection settings verified.'
 assert_contains 'State bucket tags, retention, and policy verified.'
 assert_contains 'State backend verification passed.'
+assert_not_contains 'readonly variable'
 assert_core_verification_calls
 assert_metadata_verification_calls
 assert_log_not_contains 's3api head-bucket'
@@ -233,6 +234,7 @@ assert_log_not_contains 's3api'
 
 run_case apply rivet-tofu-state-123456789012-ap-south-1-an
 assert_status 0
+assert_not_contains 'readonly variable'
 assert_contains 'State bucket created.'
 assert_contains 'State bucket ownership and region verified.'
 assert_log_contains 's3api head-bucket'
