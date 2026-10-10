@@ -58,6 +58,48 @@ if [[ "${1:-}" == "iam" && "${2:-}" == "put-user-policy" ]]; then
   exit 0
 fi
 
+if [[ "${1:-}" == "iam" && "${2:-}" == "put-role-policy" ]]; then
+  policy_name=""
+  policy_uri=""
+  previous_argument=""
+
+  for argument in "$@"; do
+    if [[ "$previous_argument" == "--policy-name" ]]; then
+      policy_name="$argument"
+    elif [[ "$previous_argument" == "--policy-document" ]]; then
+      policy_uri="$argument"
+    fi
+    previous_argument="$argument"
+  done
+
+  [[ "$policy_uri" == file://* ]] || {
+    printf 'missing file-based role policy\n' >&2
+    exit 64
+  }
+
+  case "$policy_name" in
+    rivet-state-backend)
+      destination="${FAKE_STATE_POLICY_FILE:?FAKE_STATE_POLICY_FILE is required}"
+      ;;
+    rivet-identity)
+      destination="${FAKE_IDENTITY_POLICY_FILE:?FAKE_IDENTITY_POLICY_FILE is required}"
+      ;;
+    rivet-lightsail)
+      destination="${FAKE_LIGHTSAIL_POLICY_FILE:?FAKE_LIGHTSAIL_POLICY_FILE is required}"
+      ;;
+    rivet-budget)
+      destination="${FAKE_BUDGET_POLICY_FILE:?FAKE_BUDGET_POLICY_FILE is required}"
+      ;;
+    *)
+      printf 'unexpected role policy name: %s\n' "$policy_name" >&2
+      exit 64
+      ;;
+  esac
+
+  command cp "${policy_uri#file://}" "$destination"
+  exit 0
+fi
+
 if [[ "${1:-}" == "s3api" && "${2:-}" == "put-bucket-policy" ]]; then
   if [[ "$#" != "10" || "$3" != "--bucket" ||
     "$4" != "rivet-tofu-state-123456789012-ap-south-1-an" ||

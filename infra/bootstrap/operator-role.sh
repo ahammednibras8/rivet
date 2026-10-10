@@ -85,6 +85,17 @@ if [[ "$action" == "apply" ]]; then
   readonly assume_policy_file
   render_operator_assume_policy "$aws_account_id" >"$assume_policy_file"
 
+  state_policy_file="${temporary_directory}/state-policy.json"
+  identity_policy_file="${temporary_directory}/identity-policy.json"
+  lightsail_policy_file="${temporary_directory}/lightsail-policy.json"
+  budget_policy_file="${temporary_directory}/budget-policy.json"
+  readonly state_policy_file identity_policy_file lightsail_policy_file budget_policy_file
+
+  render_operator_state_policy "$aws_account_id" >"$state_policy_file"
+  render_operator_identity_policy "$aws_account_id" >"$identity_policy_file"
+  render_operator_lightsail_policy >"$lightsail_policy_file"
+  render_operator_budget_policy "$aws_account_id" >"$budget_policy_file"
+
   existing_role_arn="$(
     # The backticks below are JMESPath literal delimiters.
     # shellcheck disable=SC2016
@@ -150,8 +161,33 @@ if [[ "$action" == "apply" ]]; then
     --policy-document "file://${assume_policy_file}" \
     --region "$aws_region"
 
+  aws iam put-role-policy \
+    --role-name "$operator_role" \
+    --policy-name "rivet-state-backend" \
+    --policy-document "file://${state_policy_file}" \
+    --region "$aws_region"
+
+  aws iam put-role-policy \
+    --role-name "$operator_role" \
+    --policy-name "rivet-identity" \
+    --policy-document "file://${identity_policy_file}" \
+    --region "$aws_region"
+
+  aws iam put-role-policy \
+    --role-name "$operator_role" \
+    --policy-name "rivet-lightsail" \
+    --policy-document "file://${lightsail_policy_file}" \
+    --region "$aws_region"
+
+  aws iam put-role-policy \
+    --role-name "$operator_role" \
+    --policy-name "rivet-budget" \
+    --policy-document "file://${budget_policy_file}" \
+    --region "$aws_region"
+
   printf 'Operator role trust boundary converged.\n'
   printf 'Login user assume-role policy converged.\n'
+  printf 'Operator role permission policies converged.\n'
   exit 0
 fi
 
