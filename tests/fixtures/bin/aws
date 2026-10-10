@@ -40,6 +40,14 @@ case "$*" in
 
     printf '%s\n' "${FAKE_ROLE_ARN:-arn:aws:iam::123456789012:role/rivet-operator}"
     ;;
+  'iam get-user --user-name rivet-developer --region ap-south-1 --query User.Arn --output text')
+    if [[ "${FAKE_IAM_STATUS:-0}" != "0" ]]; then
+      printf 'simulated IAM identity lookup failure\n' >&2
+      exit "$FAKE_IAM_STATUS"
+    fi
+
+    printf '%s\n' "${FAKE_USER_ARN:-arn:aws:iam::123456789012:user/rivet-developer}"
+    ;;
   's3api head-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1')
     [[ "${FAKE_BUCKET_EXISTS:-false}" == "true" ]]
     ;;
