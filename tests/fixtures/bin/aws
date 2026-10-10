@@ -146,6 +146,18 @@ case "$*" in
   'iam list-roles --region ap-south-1 --query Roles[?RoleName==`rivet-operator`].Arn | [0] --output text')
     printf '%s\n' "${FAKE_EXISTING_ROLE_ARN:-None}"
     ;;
+  'iam list-user-policies --user-name rivet-developer --region ap-south-1 --query sort(PolicyNames) --output json')
+    printf '%s\n' "${FAKE_USER_INLINE_POLICIES:-[\"rivet-assume-operator\"]}"
+    ;;
+  'iam list-attached-user-policies --user-name rivet-developer --region ap-south-1 --query sort(AttachedPolicies[].PolicyName) --output json')
+    printf '%s\n' "${FAKE_USER_ATTACHED_POLICIES:-[\"IAMUserChangePassword\",\"SignInLocalDevelopmentAccess\"]}"
+    ;;
+  'iam list-role-policies --role-name rivet-operator --region ap-south-1 --query sort(PolicyNames) --output json')
+    printf '%s\n' "${FAKE_ROLE_INLINE_POLICIES:-[\"rivet-budget\",\"rivet-identity\",\"rivet-lightsail\",\"rivet-state-backend\"]}"
+    ;;
+  'iam list-attached-role-policies --role-name rivet-operator --region ap-south-1 --query sort(AttachedPolicies[].PolicyName) --output json')
+    printf '%s\n' "${FAKE_ROLE_ATTACHED_POLICIES:-[]}"
+    ;;
   's3api head-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1')
     [[ "${FAKE_BUCKET_EXISTS:-false}" == "true" ]]
     ;;

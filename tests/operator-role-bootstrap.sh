@@ -26,6 +26,10 @@ case_number=0
 fake_user_arn='arn:aws:iam::123456789012:user/rivet-developer'
 fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
 fake_existing_role_arn=None
+fake_user_inline_policies='["rivet-assume-operator"]'
+fake_user_attached_policies='["IAMUserChangePassword","SignInLocalDevelopmentAccess"]'
+fake_role_inline_policies='["rivet-budget","rivet-identity","rivet-lightsail","rivet-state-backend"]'
+fake_role_attached_policies='[]'
 
 run_case() {
   local action="$1"
@@ -62,6 +66,10 @@ run_case() {
       FAKE_IDENTITY_POLICY_FILE="$identity_policy_file" \
       FAKE_LIGHTSAIL_POLICY_FILE="$lightsail_policy_file" \
       FAKE_BUDGET_POLICY_FILE="$budget_policy_file" \
+      FAKE_USER_INLINE_POLICIES="$fake_user_inline_policies" \
+      FAKE_USER_ATTACHED_POLICIES="$fake_user_attached_policies" \
+      FAKE_ROLE_INLINE_POLICIES="$fake_role_inline_policies" \
+      FAKE_ROLE_ATTACHED_POLICIES="$fake_role_attached_policies" \
       "$subject" "$action" <<<"$confirmation" 2>&1
   )"
   case_status=$?
@@ -121,6 +129,7 @@ assert_status 0
 assert_contains 'Login user verified: arn:aws:iam::123456789012:user/rivet-developer'
 assert_contains 'Operator role verified: arn:aws:iam::123456789012:role/rivet-operator'
 assert_contains 'Identity bootstrap targets verified.'
+assert_contains 'IAM policy inventory verified.'
 assert_contains 'No AWS resources were changed.'
 [[ "$case_log" == *'iam get-user --user-name rivet-developer'* ]] ||
   fail 'expected login user lookup'
@@ -129,6 +138,12 @@ assert_contains 'No AWS resources were changed.'
 [[ "$case_log" != *'iam create-'* ]] || fail "verify created IAM resources: ${case_log}"
 [[ "$case_log" != *'iam update-'* ]] || fail "verify updated IAM resources: ${case_log}"
 [[ "$case_log" != *'iam put-'* ]] || fail "verify installed IAM policies: ${case_log}"
+
+fake_role_inline_policies='["rivet-budget","rivet-identity","rivet-lightsail","rivet-state-backend","unexpected-admin"]'
+run_case verify
+assert_status 1
+assert_contains 'error: operator role inline policy inventory differs from the required set'
+fake_role_inline_policies='["rivet-budget","rivet-identity","rivet-lightsail","rivet-state-backend"]'
 
 fake_user_arn='arn:aws:iam::123456789012:user/another-user'
 run_case verify

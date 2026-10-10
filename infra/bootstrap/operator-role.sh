@@ -26,6 +26,11 @@ esac
 
 export AWS_PAGER=""
 
+if ! command -v jq >/dev/null 2>&1; then
+    printf 'error: jq is required for IAM policy verification\n' >&2
+    exit 1
+fi
+
 aws_account_id="$(require_root_aws_identity "$aws_region")"
 readonly aws_account_id
 
@@ -205,7 +210,69 @@ if [[ "$operator_role_arn" != "$expected_operator_role_arn" ]]; then
   exit 1
 fi
 
+user_inline_policies="$(
+  aws iam list-user-policies \
+    --user-name "$login_user" \
+    --region "$aws_region" \
+    --query 'sort(PolicyNames)' \
+    --output json
+)"
+
+if ! jq -e '. == ["rivet-assume-operator"]' \
+  <<<"$user_inline_policies" >/dev/null; then
+  printf 'error: login user inline policy inventory differs from the required set\n' >&2
+  exit 1
+fi
+
+user_attached_policies="$(
+  aws iam list-attached-user-policies \
+    --user-name "$login_user" \
+    --region "$aws_region" \
+    --query 'sort(AttachedPolicies[].PolicyName)' \
+    --output json
+)"
+
+if ! jq -e \
+  '. == ["IAMUserChangePassword", "SignInLocalDevelopmentAccess"]' \
+  <<<"$user_attached_policies" >/dev/null; then
+  printf 'error: login user managed policy inventory differs from the required set\n' >&2
+  exit 1
+fi
+
+role_inline_policies="$(
+  aws iam list-role-policies \
+    --role-name "$operator_role" \
+    --region "$aws_region" \
+    --query 'sort(PolicyNames)' \
+    --output json
+)"
+
+if ! jq -e \
+  '. == [
+    "rivet-budget",
+    "rivet-identity",
+    "rivet-lightsail",
+    "rivet-state-backend"
+  ]' <<<"$role_inline_policies" >/dev/null; then
+  printf 'error: operator role inline policy inventory differs from the required set\n' >&2
+  exit 1
+fi
+
+role_attached_policies="$(
+  aws iam list-attached-role-policies \
+    --role-name "$operator_role" \
+    --region "$aws_region" \
+    --query 'sort(AttachedPolicies[].PolicyName)' \
+    --output json
+)"
+
+if ! jq -e '. == []' <<<"$role_attached_policies" >/dev/null; then
+  printf 'error: operator role must not have managed policies attached\n' >&2
+  exit 1
+fi
+
 printf 'Login user verified: %s\n' "$login_user_arn"
 printf 'Operator role verified: %s\n' "$operator_role_arn"
 printf 'Identity bootstrap targets verified.\n'
+printf 'IAM policy inventory verified.\n'
 printf 'No AWS resources were changed.\n'
