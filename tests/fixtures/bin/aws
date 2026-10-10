@@ -32,13 +32,13 @@ case "$*" in
 
     printf '%b\n' "${FAKE_AWS_IDENTITY:?FAKE_AWS_IDENTITY is required}"
     ;;
-  'iam get-role --role-name RivetOperator --region ap-south-1 --query Role.Arn --output text')
+  'iam get-role --role-name rivet-operator --region ap-south-1 --query Role.Arn --output text')
     if [[ "${FAKE_IAM_STATUS:-0}" != "0" ]]; then
       printf 'simulated IAM role lookup failure\n' >&2
       exit "$FAKE_IAM_STATUS"
     fi
 
-    printf '%s\n' "${FAKE_ROLE_ARN:-arn:aws:iam::123456789012:role/RivetOperator}"
+    printf '%s\n' "${FAKE_ROLE_ARN:-arn:aws:iam::123456789012:role/rivet-operator}"
     ;;
   's3api head-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1')
     [[ "${FAKE_BUCKET_EXISTS:-false}" == "true" ]]

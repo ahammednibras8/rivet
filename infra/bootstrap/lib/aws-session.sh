@@ -34,6 +34,11 @@ require_temporary_aws_identity() {
     return 1
   fi
 
+  if [[ "$role_name" != "rivet-operator" ]]; then
+    printf 'error: use temporary credentials from rivet-operator\n' >&2
+    return 1
+  fi
+
   role_arn="$(
     aws iam get-role \
       --role-name "$role_name" \
@@ -42,7 +47,7 @@ require_temporary_aws_identity() {
       --output text
   )" || return $?
 
-  if [[ ! "$role_arn" =~ ^arn:aws:iam::${account_id}:role/.+ ]]; then
+  if [[ "$role_arn" != "arn:aws:iam::${account_id}:role/rivet-operator" ]]; then
     printf 'error: AWS returned an invalid operator role ARN\n' >&2
     return 1
   fi

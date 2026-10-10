@@ -47,9 +47,9 @@ run_case() {
   case_output="$(
     PATH="${fake_bin}:${jq_directory}:/usr/bin:/bin" \
       FAKE_AWS_LOG="$aws_log" \
-      FAKE_AWS_IDENTITY='123456789012\tarn:aws:sts::123456789012:assumed-role/RivetOperator/test-session' \
+      FAKE_AWS_IDENTITY='123456789012\tarn:aws:sts::123456789012:assumed-role/rivet-operator/test-session' \
       FAKE_AWS_STATUS="$fake_aws_status" \
-      FAKE_ROLE_ARN='arn:aws:iam::123456789012:role/RivetOperator' \
+      FAKE_ROLE_ARN='arn:aws:iam::123456789012:role/rivet-operator' \
       FAKE_TOFU_LOG="$tofu_log" \
       FAKE_TOFU_VERSION="$fake_tofu_version" \
       FAKE_TOFU_DIRECTORY="$copied_tofu" \
@@ -97,11 +97,11 @@ assert_tofu_log_not_contains() {
 
 run_case
 assert_status 0
-assert_output_contains 'Operator role: arn:aws:iam::123456789012:role/RivetOperator'
+assert_output_contains 'Operator role: arn:aws:iam::123456789012:role/rivet-operator'
 assert_output_contains 'Initializing backend bucket: rivet-tofu-state-123456789012-ap-south-1-an'
 assert_output_contains 'OpenTofu backend initialized.'
 [[ "$case_aws_log" == *'sts get-caller-identity'* ]] || fail 'expected STS identity lookup'
-[[ "$case_aws_log" == *'iam get-role --role-name RivetOperator'* ]] || fail 'expected IAM role lookup'
+[[ "$case_aws_log" == *'iam get-role --role-name rivet-operator'* ]] || fail 'expected IAM role lookup'
 [[ "$case_aws_log" != *'s3api'* ]] || fail 'backend initialization unexpectedly mutated S3'
 assert_tofu_log_contains 'version -json'
 assert_tofu_log_contains "-chdir=${copied_tofu} init -input=false -reconfigure -backend-config=bucket=rivet-tofu-state-123456789012-ap-south-1-an"

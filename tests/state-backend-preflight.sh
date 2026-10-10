@@ -19,10 +19,10 @@ case_status=0
 case_log=""
 case_policy_file=""
 case_number=0
-fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/RivetOperator/test-session'
+fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/rivet-operator/test-session'
 fake_aws_status=0
 fake_iam_status=0
-fake_role_arn='arn:aws:iam::123456789012:role/RivetOperator'
+fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
 fake_bucket_exists=false
 fake_create_status=0
 fake_bucket_region=ap-south-1
@@ -50,7 +50,7 @@ run_case() {
     render_state_bucket_policy \
       'rivet-tofu-state-123456789012-ap-south-1-an' \
       'rivet/infrastructure.tfstate' \
-      'arn:aws:iam::123456789012:role/RivetOperator' \
+      'arn:aws:iam::123456789012:role/rivet-operator' \
       >"$policy_file"
   fi
 
@@ -181,7 +181,7 @@ assert_bucket_policy() {
         "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/*"
       ] | sort) and
       .Condition.ArnNotEquals."aws:PrincipalArn" ==
-        "arn:aws:iam::123456789012:role/RivetOperator"
+        "arn:aws:iam::123456789012:role/rivet-operator"
     )] | length) == 1 and
     ([.Statement[] | select(
       .Sid == "DenyStateDeletion" and
@@ -197,7 +197,7 @@ assert_bucket_policy() {
 run_case plan
 assert_status 0
 assert_contains 'AWS temporary-role preflight passed.'
-assert_contains 'Operator role: arn:aws:iam::123456789012:role/RivetOperator'
+assert_contains 'Operator role: arn:aws:iam::123456789012:role/rivet-operator'
 assert_contains 'Target region: ap-south-1'
 assert_contains 'Target state bucket: rivet-tofu-state-123456789012-ap-south-1-an'
 assert_contains 'No AWS resources were changed.'
@@ -338,24 +338,35 @@ run_case plan
 assert_status 1
 assert_contains 'error: use temporary credentials from an assumed IAM role'
 
-fake_identity='not-an-account\tarn:aws:sts::123456789012:assumed-role/RivetOperator/test-session'
+fake_identity='not-an-account\tarn:aws:sts::123456789012:assumed-role/rivet-operator/test-session'
 run_case plan
 assert_status 1
 assert_contains 'error: AWS returned an invalid account ID'
 
-fake_identity='123456789012\tarn:aws:sts::999999999999:assumed-role/RivetOperator/test-session'
+fake_identity='123456789012\tarn:aws:sts::999999999999:assumed-role/rivet-operator/test-session'
 run_case plan
 assert_status 1
 assert_contains 'error: use temporary credentials from an assumed IAM role'
 assert_log_not_contains 'iam get-role'
 
-fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/RivetOperator/test-session'
-fake_role_arn='arn:aws:iam::999999999999:role/RivetOperator'
+fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/another-project/test-session'
+run_case plan
+assert_status 1
+assert_contains 'error: use temporary credentials from rivet-operator'
+assert_log_not_contains 'iam get-role'
+
+fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/rivet-operator/test-session'
+fake_role_arn='arn:aws:iam::999999999999:role/rivet-operator'
 run_case plan
 assert_status 1
 assert_contains 'error: AWS returned an invalid operator role ARN'
 
-fake_role_arn='arn:aws:iam::123456789012:role/RivetOperator'
+fake_role_arn='arn:aws:iam::123456789012:role/another-project'
+run_case plan
+assert_status 1
+assert_contains 'error: AWS returned an invalid operator role ARN'
+
+fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
 fake_iam_status=43
 run_case plan
 assert_status 43
