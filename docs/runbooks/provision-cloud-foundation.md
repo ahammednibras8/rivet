@@ -53,13 +53,36 @@ Ansible Core reports `2.21.3`, and `community.general` reports `13.4.0`.
 ## Start a temporary AWS session
 
 Authenticate using the account's approved identity-provider or role workflow.
-For an AWS Login profile backed by existing console access, use:
+For the Rivet AWS Login profile backed by existing console access, use:
 
 ```bash
-export AWS_PROFILE="YOUR_APPROVED_PROFILE"
+export AWS_PROFILE="rivet-developer"
 aws login --profile "$AWS_PROFILE"
 aws sts get-caller-identity --region ap-south-1
 ```
+
+AWS Login credentials must be exported through `credential_process` before
+OpenTofu's AWS SDK can consume them. Configure the SDK bridge and make the
+operator role source that bridge:
+
+```bash
+aws configure set credential_process \
+  'aws configure export-credentials --profile rivet-developer' \
+  --profile rivet-developer-sdk
+aws configure set region ap-south-1 --profile rivet-developer-sdk
+aws configure set source_profile rivet-developer-sdk --profile rivet-operator
+```
+
+Verify both ends of the chain:
+
+```bash
+aws sts get-caller-identity --profile rivet-developer-sdk
+aws sts get-caller-identity --profile rivet-operator
+```
+
+The first ARN must identify the `rivet-developer` IAM user. The second must
+identify the `rivet-operator` assumed role. Use `rivet-operator` for all
+OpenTofu commands.
 
 For an AWS IAM Identity Center profile, use:
 
@@ -69,11 +92,11 @@ aws sso login --profile "$AWS_PROFILE"
 aws sts get-caller-identity --region ap-south-1
 ```
 
-The returned ARN must contain `:assumed-role/`. An AWS Login profile can issue
-temporary credentials while still identifying its principal as an IAM user;
-that is not sufficient. Configure and select an operator-role profile whose
-source is the login profile before continuing. Do not continue with a root or
-IAM-user ARN. The bootstrap scripts repeat this check and stop on failure.
+The operator profile's returned ARN must contain `:assumed-role/`. An AWS Login
+profile can issue temporary credentials while still identifying its principal
+as an IAM user; that is not sufficient for infrastructure operations. Do not
+continue with a root or IAM-user ARN. The bootstrap scripts repeat this check
+and stop on failure.
 
 ## Prepare runtime inputs
 
