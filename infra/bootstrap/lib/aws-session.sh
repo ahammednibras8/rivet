@@ -54,3 +54,39 @@ require_temporary_aws_identity() {
 
   printf '%s\t%s\n' "$account_id" "$role_arn"
 }
+
+require_root_aws_identity() {
+  local region="$1"
+  local identity
+  local account_id
+  local caller_arn
+  local expected_root_arn
+
+  if ! command -v aws >/dev/null 2>&1; then
+    printf 'error: AWS CLI v2 is required\n' >&2
+    return 1
+  fi
+
+  identity="$(
+    aws sts get-caller-identity \
+      --region "$region" \
+      --query '[Account,Arn]' \
+      --output text
+  )" || return $?
+
+  IFS=$'\t' read -r account_id caller_arn <<<"$identity"
+
+  if [[ ! "$account_id" =~ ^[0-9]{12}$ ]]; then
+    printf 'error: AWS returned an invalid account ID\n' >&2
+    return 1
+  fi
+
+  expected_root_arn="arn:aws:iam::${account_id}:root"
+
+  if [[ "$caller_arn" != "$expected_root_arn" ]]; then
+    printf 'error: use the AWS account root login only for IAM bootstrap\n' >&2
+    return 1
+  fi
+
+  printf '%s\n' "$account_id"
+}
