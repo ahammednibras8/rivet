@@ -81,6 +81,10 @@ if [[ "$action" == "apply" ]]; then
   readonly trust_policy_file
   render_operator_trust_policy "$aws_account_id" >"$trust_policy_file"
 
+  assume_policy_file="${temporary_directory}/assume-policy.json"
+  readonly assume_policy_file
+  render_operator_assume_policy "$aws_account_id" >"$assume_policy_file"
+
   existing_role_arn="$(
     # The backticks below are JMESPath literal delimiters.
     # shellcheck disable=SC2016
@@ -140,7 +144,14 @@ if [[ "$action" == "apply" ]]; then
     exit 1
   fi
 
+  aws iam put-user-policy \
+    --user-name "$login_user" \
+    --policy-name "rivet-assume-operator" \
+    --policy-document "file://${assume_policy_file}" \
+    --region "$aws_region"
+
   printf 'Operator role trust boundary converged.\n'
+  printf 'Login user assume-role policy converged.\n'
   exit 0
 fi
 

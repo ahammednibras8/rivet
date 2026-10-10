@@ -37,6 +37,27 @@ if [[ "${1:-}" == "iam" &&
   exit 0
 fi
 
+if [[ "${1:-}" == "iam" && "${2:-}" == "put-user-policy" ]]; then
+  policy_uri=""
+  previous_argument=""
+
+  for argument in "$@"; do
+    if [[ "$previous_argument" == "--policy-document" ]]; then
+      policy_uri="$argument"
+      break
+    fi
+    previous_argument="$argument"
+  done
+
+  [[ "$policy_uri" == file://* ]] || {
+    printf 'missing file-based user policy\n' >&2
+    exit 64
+  }
+  : "${FAKE_USER_POLICY_FILE:?FAKE_USER_POLICY_FILE is required}"
+  command cp "${policy_uri#file://}" "$FAKE_USER_POLICY_FILE"
+  exit 0
+fi
+
 if [[ "${1:-}" == "s3api" && "${2:-}" == "put-bucket-policy" ]]; then
   if [[ "$#" != "10" || "$3" != "--bucket" ||
     "$4" != "rivet-tofu-state-123456789012-ap-south-1-an" ||

@@ -15,6 +15,7 @@ case_output=""
 case_status=0
 case_log=""
 case_trust_policy=""
+case_user_policy=""
 case_number=0
 fake_user_arn='arn:aws:iam::123456789012:user/rivet-developer'
 fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
@@ -25,10 +26,12 @@ run_case() {
   local confirmation="${2:-}"
   local log_file
   local trust_policy_file
+  local user_policy_file
 
   case_number=$((case_number + 1))
   log_file="${test_directory}/aws-${case_number}.log"
   trust_policy_file="${test_directory}/trust-${case_number}.json"
+  user_policy_file="${test_directory}/user-${case_number}.json"
   : >"$log_file"
 
   set +e
@@ -40,6 +43,7 @@ run_case() {
       FAKE_ROLE_ARN="$fake_role_arn" \
       FAKE_EXISTING_ROLE_ARN="$fake_existing_role_arn" \
       FAKE_TRUST_POLICY_FILE="$trust_policy_file" \
+      FAKE_USER_POLICY_FILE="$user_policy_file" \
       "$subject" "$action" <<<"$confirmation" 2>&1
   )"
   case_status=$?
@@ -49,6 +53,10 @@ run_case() {
   case_trust_policy=""
   if [[ -s "$trust_policy_file" ]]; then
     case_trust_policy="$(<"$trust_policy_file")"
+  fi
+  case_user_policy=""
+  if [[ -s "$user_policy_file" ]]; then
+    case_user_policy="$(<"$user_policy_file")"
   fi
 }
 
@@ -117,6 +125,7 @@ run_case apply rivet-operator
 assert_status 0
 assert_contains 'Operator role created: arn:aws:iam::123456789012:role/rivet-operator'
 assert_contains 'Operator role trust boundary converged.'
+assert_contains 'Login user assume-role policy converged.'
 [[ "$case_log" == *'iam get-user --user-name rivet-developer'* ]] ||
   fail 'apply did not verify the login user'
 [[ "$case_log" == *'iam list-roles '* ]] || fail 'apply did not inspect existing roles'
@@ -137,12 +146,23 @@ jq -e '
     "Action": "sts:AssumeRole"
   }]
 ' <<<"$case_trust_policy" >/dev/null || fail 'apply used an unexpected trust policy'
+[[ "$case_log" == *'iam put-user-policy --user-name rivet-developer --policy-name rivet-assume-operator'* ]] ||
+  fail 'apply did not install the login user assume-role policy'
+jq -e '
+  .Statement == [{
+    "Sid": "AssumeRivetOperator",
+    "Effect": "Allow",
+    "Action": "sts:AssumeRole",
+    "Resource": "arn:aws:iam::123456789012:role/rivet-operator"
+  }]
+' <<<"$case_user_policy" >/dev/null || fail 'apply used an unexpected login user policy'
 
 fake_existing_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
 run_case apply rivet-operator
 assert_status 0
 assert_contains 'Operator role updated: arn:aws:iam::123456789012:role/rivet-operator'
 assert_contains 'Operator role trust boundary converged.'
+assert_contains 'Login user assume-role policy converged.'
 [[ "$case_log" == *'iam update-assume-role-policy --role-name rivet-operator'* ]] ||
   fail 'repeat apply did not update the trust policy'
 [[ "$case_log" == *'iam update-role --role-name rivet-operator'* ]] ||
@@ -152,6 +172,8 @@ assert_contains 'Operator role trust boundary converged.'
 [[ "$case_log" == *'Key=ManagedBy,Value=AWSCLI Key=Project,Value=Rivet Key=Workspace,Value=primary'* ]] ||
   fail 'repeat apply must pass three separate role tag arguments'
 [[ "$case_log" != *'iam create-role'* ]] || fail 'repeat apply recreated the role'
+[[ "$case_log" == *'iam put-user-policy --user-name rivet-developer --policy-name rivet-assume-operator'* ]] ||
+  fail 'repeat apply did not converge the login user policy'
 fake_existing_role_arn=None
 
 run_case invalid
