@@ -112,3 +112,40 @@ render_operator_identity_policy() {
 }
 EOF
 }
+
+render_operator_lightsail_policy() {
+  cat <<'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManageRivetLightsailWorkspace",
+      "Effect": "Allow",
+      "Action": [
+        "lightsail:AllocateStaticIp",
+        "lightsail:AttachStaticIp",
+        "lightsail:CloseInstancePublicPorts",
+        "lightsail:CreateInstances",
+        "lightsail:GetInstance",
+        "lightsail:GetInstanceAccessDetails",
+        "lightsail:GetInstancePortStates",
+        "lightsail:GetInstanceState",
+        "lightsail:GetKeyPair",
+        "lightsail:GetOperation",
+        "lightsail:GetStaticIp",
+        "lightsail:ImportKeyPair",
+        "lightsail:PutInstancePublicPorts",
+        "lightsail:TagResource",
+        "lightsail:UntagResource"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-south-1"
+        }
+      }
+    }
+  ]
+}
+EOF
+}

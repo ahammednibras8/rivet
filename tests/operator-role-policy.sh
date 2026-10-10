@@ -132,4 +132,43 @@ if ! jq -e \
   exit 1
 fi
 
-echo "The Rivet login, operator role, identity, and state policies have exact boundaries."
+lightsail_policy="$(render_operator_lightsail_policy)"
+
+if ! jq -e '
+  . == {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ManageRivetLightsailWorkspace",
+        "Effect": "Allow",
+        "Action": [
+          "lightsail:AllocateStaticIp",
+          "lightsail:AttachStaticIp",
+          "lightsail:CloseInstancePublicPorts",
+          "lightsail:CreateInstances",
+          "lightsail:GetInstance",
+          "lightsail:GetInstanceAccessDetails",
+          "lightsail:GetInstancePortStates",
+          "lightsail:GetInstanceState",
+          "lightsail:GetKeyPair",
+          "lightsail:GetOperation",
+          "lightsail:GetStaticIp",
+          "lightsail:ImportKeyPair",
+          "lightsail:PutInstancePublicPorts",
+          "lightsail:TagResource",
+          "lightsail:UntagResource"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "aws:RequestedRegion": "ap-south-1"
+          }
+        }
+      }
+    ]
+  }' <<<"$lightsail_policy" >/dev/null; then
+  echo "The operator Lightsail policy must contain only the non-destructive Mumbai workspace actions" >&2
+  exit 1
+fi
+
+echo "The Rivet login, operator role, identity, state, and Lightsail policies have exact boundaries."
