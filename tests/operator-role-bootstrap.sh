@@ -14,16 +14,21 @@ trap 'rm -rf "$test_directory"' EXIT
 case_output=""
 case_status=0
 case_log=""
+case_trust_policy=""
 case_number=0
 fake_user_arn='arn:aws:iam::123456789012:user/rivet-developer'
 fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
+fake_existing_role_arn=None
 
 run_case() {
   local action="$1"
+  local confirmation="${2:-}"
   local log_file
+  local trust_policy_file
 
   case_number=$((case_number + 1))
   log_file="${test_directory}/aws-${case_number}.log"
+  trust_policy_file="${test_directory}/trust-${case_number}.json"
   : >"$log_file"
 
   set +e
@@ -33,12 +38,18 @@ run_case() {
       FAKE_AWS_IDENTITY='123456789012\tarn:aws:iam::123456789012:root' \
       FAKE_USER_ARN="$fake_user_arn" \
       FAKE_ROLE_ARN="$fake_role_arn" \
-      "$subject" "$action" 2>&1
+      FAKE_EXISTING_ROLE_ARN="$fake_existing_role_arn" \
+      FAKE_TRUST_POLICY_FILE="$trust_policy_file" \
+      "$subject" "$action" <<<"$confirmation" 2>&1
   )"
   case_status=$?
   set -e
 
   case_log="$(<"$log_file")"
+  case_trust_policy=""
+  if [[ -s "$trust_policy_file" ]]; then
+    case_trust_policy="$(<"$trust_policy_file")"
+  fi
 }
 
 fail() {
@@ -96,6 +107,52 @@ run_case verify
 assert_status 1
 assert_contains 'error: AWS returned an unexpected operator role ARN'
 fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
+
+run_case apply wrong-role
+assert_status 1
+assert_contains 'error: confirmation did not match rivet-operator'
+[[ "$case_log" != *'iam '* ]] || fail "rejected apply called IAM: ${case_log}"
+
+run_case apply rivet-operator
+assert_status 0
+assert_contains 'Operator role created: arn:aws:iam::123456789012:role/rivet-operator'
+assert_contains 'Operator role trust boundary converged.'
+[[ "$case_log" == *'iam get-user --user-name rivet-developer'* ]] ||
+  fail 'apply did not verify the login user'
+[[ "$case_log" == *'iam list-roles '* ]] || fail 'apply did not inspect existing roles'
+[[ "$case_log" == *'iam create-role --role-name rivet-operator'* ]] ||
+  fail 'apply did not create the operator role'
+[[ "$case_log" == *'--max-session-duration 3600'* ]] ||
+  fail 'created role does not have a one-hour session limit'
+[[ "$case_log" == *'Key=ManagedBy,Value=AWSCLI'* ]] || fail 'missing ManagedBy role tag'
+[[ "$case_log" == *'Key=Project,Value=Rivet'* ]] || fail 'missing Project role tag'
+[[ "$case_log" == *'Key=Workspace,Value=primary'* ]] || fail 'missing Workspace role tag'
+[[ "$case_log" == *'Key=ManagedBy,Value=AWSCLI Key=Project,Value=Rivet Key=Workspace,Value=primary'* ]] ||
+  fail 'role tags must be passed as three separate arguments'
+jq -e '
+  .Statement == [{
+    "Sid": "AllowRivetDeveloper",
+    "Effect": "Allow",
+    "Principal": {"AWS": "arn:aws:iam::123456789012:user/rivet-developer"},
+    "Action": "sts:AssumeRole"
+  }]
+' <<<"$case_trust_policy" >/dev/null || fail 'apply used an unexpected trust policy'
+
+fake_existing_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
+run_case apply rivet-operator
+assert_status 0
+assert_contains 'Operator role updated: arn:aws:iam::123456789012:role/rivet-operator'
+assert_contains 'Operator role trust boundary converged.'
+[[ "$case_log" == *'iam update-assume-role-policy --role-name rivet-operator'* ]] ||
+  fail 'repeat apply did not update the trust policy'
+[[ "$case_log" == *'iam update-role --role-name rivet-operator'* ]] ||
+  fail 'repeat apply did not update the role settings'
+[[ "$case_log" == *'iam tag-role --role-name rivet-operator'* ]] ||
+  fail 'repeat apply did not converge the role tags'
+[[ "$case_log" == *'Key=ManagedBy,Value=AWSCLI Key=Project,Value=Rivet Key=Workspace,Value=primary'* ]] ||
+  fail 'repeat apply must pass three separate role tag arguments'
+[[ "$case_log" != *'iam create-role'* ]] || fail 'repeat apply recreated the role'
+fake_existing_role_arn=None
 
 run_case invalid
 assert_status 64

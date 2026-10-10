@@ -5,6 +5,38 @@ set -euo pipefail
 : "${FAKE_AWS_LOG:?FAKE_AWS_LOG is required}"
 printf '%s\n' "$*" >>"$FAKE_AWS_LOG"
 
+if [[ "${1:-}" == "iam" &&
+  ("${2:-}" == "create-role" || "${2:-}" == "update-assume-role-policy") ]]; then
+  trust_policy_uri=""
+  previous_argument=""
+
+  for argument in "$@"; do
+    if [[ "$previous_argument" == "--assume-role-policy-document" ||
+      "$previous_argument" == "--policy-document" ]]; then
+      trust_policy_uri="$argument"
+      break
+    fi
+    previous_argument="$argument"
+  done
+
+  [[ "$trust_policy_uri" == file://* ]] || {
+    printf 'missing file-based trust policy\n' >&2
+    exit 64
+  }
+  : "${FAKE_TRUST_POLICY_FILE:?FAKE_TRUST_POLICY_FILE is required}"
+  command cp "${trust_policy_uri#file://}" "$FAKE_TRUST_POLICY_FILE"
+
+  if [[ "$2" == "create-role" ]]; then
+    printf '%s\n' 'arn:aws:iam::123456789012:role/rivet-operator'
+  fi
+  exit 0
+fi
+
+if [[ "${1:-}" == "iam" &&
+  ("${2:-}" == "update-role" || "${2:-}" == "tag-role") ]]; then
+  exit 0
+fi
+
 if [[ "${1:-}" == "s3api" && "${2:-}" == "put-bucket-policy" ]]; then
   if [[ "$#" != "10" || "$3" != "--bucket" ||
     "$4" != "rivet-tofu-state-123456789012-ap-south-1-an" ||
@@ -47,6 +79,9 @@ case "$*" in
     fi
 
     printf '%s\n' "${FAKE_USER_ARN:-arn:aws:iam::123456789012:user/rivet-developer}"
+    ;;
+  'iam list-roles --region ap-south-1 --query Roles[?RoleName==`rivet-operator`].Arn | [0] --output text')
+    printf '%s\n' "${FAKE_EXISTING_ROLE_ARN:-None}"
     ;;
   's3api head-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1')
     [[ "${FAKE_BUCKET_EXISTS:-false}" == "true" ]]
