@@ -168,6 +168,10 @@ assert_contains 'Operator role created: arn:aws:iam::123456789012:role/rivet-ope
 assert_contains 'Operator role trust boundary converged.'
 assert_contains 'Login user assume-role policy converged.'
 assert_contains 'Operator role permission policies converged.'
+assert_contains 'IAM policy inventory verified.'
+assert_contains 'IAM bootstrap verification passed.'
+[[ "$case_output" != *'No AWS resources were changed.'* ]] ||
+  fail 'apply incorrectly claimed that no AWS resources changed'
 [[ "$case_log" == *'iam get-user --user-name rivet-developer'* ]] ||
   fail 'apply did not verify the login user'
 [[ "$case_log" == *'iam list-roles '* ]] || fail 'apply did not inspect existing roles'
@@ -230,6 +234,8 @@ assert_contains 'Operator role updated: arn:aws:iam::123456789012:role/rivet-ope
 assert_contains 'Operator role trust boundary converged.'
 assert_contains 'Login user assume-role policy converged.'
 assert_contains 'Operator role permission policies converged.'
+assert_contains 'IAM policy inventory verified.'
+assert_contains 'IAM bootstrap verification passed.'
 [[ "$case_log" == *'iam update-assume-role-policy --role-name rivet-operator'* ]] ||
   fail 'repeat apply did not update the trust policy'
 [[ "$case_log" == *'iam update-role --role-name rivet-operator'* ]] ||

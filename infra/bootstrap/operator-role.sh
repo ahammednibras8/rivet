@@ -193,7 +193,6 @@ if [[ "$action" == "apply" ]]; then
   printf 'Operator role trust boundary converged.\n'
   printf 'Login user assume-role policy converged.\n'
   printf 'Operator role permission policies converged.\n'
-  exit 0
 fi
 
 operator_role_arn="$(
@@ -275,4 +274,8 @@ printf 'Login user verified: %s\n' "$login_user_arn"
 printf 'Operator role verified: %s\n' "$operator_role_arn"
 printf 'Identity bootstrap targets verified.\n'
 printf 'IAM policy inventory verified.\n'
-printf 'No AWS resources were changed.\n'
+if [[ "$action" == "verify" ]]; then
+    printf 'No AWS resources were changed.\n'
+else
+    printf 'IAM bootstrap verification passed.\n'
+fi
