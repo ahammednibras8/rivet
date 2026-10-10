@@ -113,4 +113,23 @@ if ! jq -e \
   exit 1
 fi
 
-echo "The Rivet login, operator role, and state access policies have exact boundaries."
+identity_policy="$(render_operator_identity_policy "$account_id")"
+
+if ! jq -e \
+  --arg role "$expected_role" \
+  '. == {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "InspectRivetOperatorRole",
+        "Effect": "Allow",
+        "Action": "iam:GetRole",
+        "Resource": $role
+      }
+    ]
+  }' <<<"$identity_policy" >/dev/null; then
+  echo "The operator identity policy must permit inspection of only its own role" >&2
+  exit 1
+fi
+
+echo "The Rivet login, operator role, identity, and state policies have exact boundaries."

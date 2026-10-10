@@ -94,3 +94,21 @@ render_operator_state_policy() {
 }
 EOF
 }
+
+render_operator_identity_policy() {
+  local account_id="$1"
+
+  cat <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectRivetOperatorRole",
+      "Effect": "Allow",
+      "Action": "iam:GetRole",
+      "Resource": "arn:aws:iam::${account_id}:role/rivet-operator"
+    }
+  ]
+}
+EOF
+}
