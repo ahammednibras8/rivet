@@ -171,4 +171,39 @@ if ! jq -e '
   exit 1
 fi
 
-echo "The Rivet login, operator role, identity, state, and Lightsail policies have exact boundaries."
+expected_budget="arn:aws:budgets::${account_id}:budget/rivet-monthly-cost"
+budget_policy="$(render_operator_budget_policy "$account_id")"
+
+if ! jq -e \
+  --arg budget "$expected_budget" \
+  '. == {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ManageRivetBudget",
+        "Effect": "Allow",
+        "Action": [
+          "budgets:ListTagsForResource",
+          "budgets:ModifyBudget",
+          "budgets:TagResource",
+          "budgets:UntagResource",
+          "budgets:ViewBudget"
+        ],
+        "Resource": $budget
+      },
+      {
+        "Sid": "AuthorizeRivetBudgetBilling",
+        "Effect": "Allow",
+        "Action": [
+          "aws-portal:ModifyBilling",
+          "aws-portal:ViewBilling"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }' <<<"$budget_policy" >/dev/null; then
+  echo "The operator budget policy must manage only the tagged Rivet budget and its required billing authorization" >&2
+  exit 1
+fi
+
+echo "The Rivet login, operator role, identity, state, Lightsail, and budget policies have exact boundaries."

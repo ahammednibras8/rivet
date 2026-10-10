@@ -149,3 +149,36 @@ render_operator_lightsail_policy() {
 }
 EOF
 }
+
+render_operator_budget_policy() {
+  local account_id="$1"
+
+  cat <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManageRivetBudget",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:ListTagsForResource",
+        "budgets:ModifyBudget",
+        "budgets:TagResource",
+        "budgets:UntagResource",
+        "budgets:ViewBudget"
+      ],
+      "Resource": "arn:aws:budgets::${account_id}:budget/rivet-monthly-cost"
+    },
+    {
+      "Sid": "AuthorizeRivetBudgetBilling",
+      "Effect": "Allow",
+      "Action": [
+        "aws-portal:ModifyBilling",
+        "aws-portal:ViewBilling"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+}
