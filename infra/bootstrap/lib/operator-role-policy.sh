@@ -133,6 +133,7 @@ render_operator_lightsail_policy() {
         "lightsail:CloseInstancePublicPorts",
         "lightsail:CreateInstances",
         "lightsail:GetBlueprints",
+        "lightsail:GetBuckets",
         "lightsail:GetBundles",
         "lightsail:GetInstance",
         "lightsail:GetInstanceAccessDetails",
