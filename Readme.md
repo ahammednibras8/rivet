@@ -9,9 +9,9 @@ providers, and development tools on a persistent cloud host. The existing T3
 Code mobile app connects to that host, and the developer continues the same
 threads, worktrees, tests, diffs, and pull requests from anywhere.
 
-> **Project status:** The cloud foundation is implemented and ready for its
-> first reviewed AWS provisioning. T3 Code installation and the mobile
-> connection remain future implementation issues.
+> **Project status:** The AWS cloud foundation is provisioned and verified.
+> T3 Code installation and the mobile connection remain future implementation
+> issues.
 
 ## The problem
 
@@ -106,6 +106,11 @@ the cloud host because that is where T3 Code and the agents execute.
 Phase 1 uses T3 Connect rather than inventing a new remote-control protocol or
 operating multiple access routes. The Lightsail and host firewalls must not
 expose T3 Code, HTTP, or HTTPS listeners to the public internet.
+
+Host administration is a separate path: hardened OpenSSH runs over a private
+Tailscale network. Tailscale SSH, Serve, and Funnel are not enabled. A scoped
+public `/32` exists only during initial bootstrap or an approved rebuild;
+routine operation uses an unroutable firewall sentinel and private-only UFW.
 
 The selected route must:
 
