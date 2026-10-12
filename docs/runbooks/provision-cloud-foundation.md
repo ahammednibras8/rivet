@@ -20,7 +20,7 @@ The supported control-node toolchain is:
 - OpenTofu 1.13.1;
 - AWS CLI v2;
 - Python 3 with `venv` support;
-- `jq`, ShellCheck, Gitleaks, Git, OpenSSH, and `curl`;
+- `jq`, ShellCheck, Gitleaks, Git, OpenSSH, `curl`, and the Tailscale client;
 - Ansible Core 2.21.3; and
 - `community.general` 13.4.0.
 
@@ -84,6 +84,10 @@ The first ARN must identify the `rivet-developer` IAM user. The second must
 identify the `rivet-operator` assumed role. Use `rivet-operator` for all
 OpenTofu commands.
 
+```bash
+export AWS_PROFILE="rivet-operator"
+```
+
 For an AWS IAM Identity Center profile, use:
 
 ```bash
@@ -114,19 +118,21 @@ passed to OpenTofu, Ansible, or Git.
 ```bash
 export RIVET_OPERATOR_SSH_PRIVATE_KEY="$HOME/.ssh/rivet_operator_rsa"
 export RIVET_OPERATOR_SSH_PUBLIC_KEY="$(<"${RIVET_OPERATOR_SSH_PRIVATE_KEY}.pub")"
-export RIVET_OPERATOR_IPV4_CIDR="$(curl --fail --silent --show-error https://checkip.amazonaws.com | tr -d '[:space:]')/32"
+export RIVET_BOOTSTRAP_IPV4_CIDR="$(curl --fail --silent --show-error https://checkip.amazonaws.com | tr -d '[:space:]')/32"
 printf 'Budget notification email: '
 IFS= read -r RIVET_BUDGET_NOTIFICATION_EMAIL
 
 export TF_VAR_operator_ssh_public_key="$RIVET_OPERATOR_SSH_PUBLIC_KEY"
-export TF_VAR_operator_ipv4_cidr="$RIVET_OPERATOR_IPV4_CIDR"
+export TF_VAR_bootstrap_ipv4_cidr="$RIVET_BOOTSTRAP_IPV4_CIDR"
 export TF_VAR_budget_notification_email="$RIVET_BUDGET_NOTIFICATION_EMAIL"
 unset RIVET_BUDGET_NOTIFICATION_EMAIL
 ```
 
-Confirm that the CIDR is the control node's current public IPv4 address with a
-`/32` suffix. If the address changes, create and review a new OpenTofu plan
-before attempting SSH or Ansible again.
+Confirm that the bootstrap CIDR is the control node's current public IPv4
+address with a `/32` suffix. It is temporary: it permits only the initial SSH
+bootstrap and is replaced with the reserved, unroutable `192.0.2.1/32`
+sentinel after Tailscale access succeeds. Routine administration never depends
+on the control node's rotating public address.
 
 Do not place these values in a committed `.tfvars` file. The budget email and
 all identifiers in later command output must be redacted before publishing
@@ -193,8 +199,8 @@ The working tree must contain no unexpected file. The plan must contain only:
 - one Ubuntu 24.04 x86-64 `medium_3_1` instance named `rivet-workspace` in
   `ap-south-1a`;
 - one attached static IPv4 address named `rivet-workspace-ip`;
-- one Lightsail firewall policy allowing TCP port 22 only from the supplied
-  IPv4 `/32` address, with no IPv6, HTTP, HTTPS, or T3 listener;
+- one Lightsail firewall policy replacing AWS defaults with TCP port 22 only
+  from `RIVET_BOOTSTRAP_IPV4_CIDR`, with no IPv6, HTTP, HTTPS, or T3 listener;
 - one account-wide USD 30 monthly budget with the accepted notifications; and
 - the tags `ManagedBy=OpenTofu`, `Project=Rivet`, and `Workspace=primary`.
 
@@ -255,8 +261,10 @@ aws budgets describe-notifications-for-budget \
 tofu -chdir=infra/tofu state list
 ```
 
-Confirm the values match the reviewed plan and that the only public firewall
-entry is TCP port 22 from `RIVET_OPERATOR_IPV4_CIDR`.
+Confirm the values match the reviewed plan and that the only Lightsail
+firewall entry is TCP port 22 from `RIVET_BOOTSTRAP_IPV4_CIDR`. AWS documents
+public SSH and HTTP as defaults for a new Ubuntu Lightsail instance, so their
+absence must be verified rather than inferred from omitted configuration.
 
 ## Trust the SSH host key
 
@@ -293,9 +301,10 @@ printf '%s\n' "$host_key_line" >>"$HOME/.ssh/known_hosts"
 chmod 600 "$HOME/.ssh/known_hosts"
 ```
 
-## Converge the Ubuntu baseline
+## Install Tailscale without closing bootstrap access
 
-First confirm the cloud-init bridge completed:
+First confirm the cloud-init bridge completed over the temporary, scoped
+public SSH route:
 
 ```bash
 ssh \
@@ -304,7 +313,8 @@ ssh \
   'cloud-init status --wait --long'
 ```
 
-Preview the Ansible convergence. Review every predicted change:
+Preview the Ansible convergence. Check mode skips the enrollment assertion but
+must still show no unsafe firewall policy:
 
 ```bash
 ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
@@ -325,6 +335,80 @@ ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
   ansible/site.yml
 ```
 
+On a new host, this first real run installs and starts the pinned Tailscale
+client, then intentionally stops at `Require private administrative
+connectivity`. The host firewall role must not run. Any earlier failure is not
+an accepted enrollment checkpoint and must be diagnosed before continuing.
+
+## Enroll the private administrative route
+
+From the still-authorized bootstrap SSH connection, start interactive
+Tailscale enrollment without enabling Tailscale SSH or DNS management:
+
+```bash
+ssh \
+  -i "$RIVET_OPERATOR_SSH_PRIVATE_KEY" \
+  "rivet-admin@${RIVET_WORKSPACE_IP}" \
+  'sudo tailscale up --hostname=rivet-workspace --accept-dns=false'
+```
+
+Open the one-time URL locally, authenticate to the approved tailnet, and never
+publish that URL. In the Tailscale Machines console, find `rivet-workspace`
+and disable key expiry for that server only. Tailscale documents key-expiry
+disablement as appropriate for trusted servers that would otherwise require
+interactive reauthentication.
+
+Confirm the control node is signed into the same tailnet, then verify a direct
+or relayed WireGuard path:
+
+```bash
+tailscale ping rivet-workspace
+export RIVET_WORKSPACE_TAILSCALE_IP="$(
+  tailscale status --json |
+    jq -r '.Peer | to_entries[]
+      | select(.value.HostName == "rivet-workspace" and .value.Online == true)
+      | .value.TailscaleIPs[]
+      | select(test("^[0-9]+\\."))' |
+    head -n 1
+)"
+test -n "$RIVET_WORKSPACE_TAILSCALE_IP"
+```
+
+Preserve the AWS-witnessed host-key identity while connecting to the private
+address:
+
+```bash
+export RIVET_WORKSPACE_PUBLIC_IP="$RIVET_WORKSPACE_IP"
+ssh \
+  -o "HostKeyAlias=$RIVET_WORKSPACE_PUBLIC_IP" \
+  -o StrictHostKeyChecking=yes \
+  -i "$RIVET_OPERATOR_SSH_PRIVATE_KEY" \
+  "rivet-admin@${RIVET_WORKSPACE_TAILSCALE_IP}" \
+  'sudo -n true'
+```
+
+Do not continue unless this private SSH command succeeds.
+
+## Converge the private-only Ubuntu baseline
+
+Point the Ansible inventory at the verified Tailscale address and preserve the
+same host-key alias:
+
+```bash
+export RIVET_WORKSPACE_IP="$RIVET_WORKSPACE_TAILSCALE_IP"
+ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
+  --inventory ansible/inventory/hosts.yml \
+  --private-key "$RIVET_OPERATOR_SSH_PRIVATE_KEY" \
+  --ssh-common-args \
+    "-o HostKeyAlias=$RIVET_WORKSPACE_PUBLIC_IP -o StrictHostKeyChecking=yes" \
+  --diff \
+  ansible/site.yml
+```
+
+This run must pass the enrollment guard before UFW allows SSH on `tailscale0`,
+removes unrestricted host-level SSH, and enables its deny-by-default inbound
+policy.
+
 Run the same command again without `--diff`. The second play recap must report
 `changed=0`, `unreachable=0`, and `failed=0`:
 
@@ -332,8 +416,35 @@ Run the same command again without `--diff`. The second play recap must report
 ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
   --inventory ansible/inventory/hosts.yml \
   --private-key "$RIVET_OPERATOR_SSH_PRIVATE_KEY" \
+  --ssh-common-args \
+    "-o HostKeyAlias=$RIVET_WORKSPACE_PUBLIC_IP -o StrictHostKeyChecking=yes" \
   ansible/site.yml
 ```
+
+## Lock the Lightsail edge to the fail-closed sentinel
+
+Remove the temporary bootstrap override and create a new saved plan:
+
+```bash
+unset TF_VAR_bootstrap_ipv4_cidr RIVET_BOOTSTRAP_IPV4_CIDR
+tofu -chdir=infra/tofu plan \
+  -input=false \
+  -out=tfplan-sentinel-firewall
+tofu -chdir=infra/tofu show -no-color tfplan-sentinel-firewall
+```
+
+The only action must replace the public-port policy's source with
+`192.0.2.1/32`; the instance and static address must be unchanged. After human
+review, apply that exact plan:
+
+```bash
+tofu -chdir=infra/tofu apply -input=false tfplan-sentinel-firewall
+```
+
+Use `aws lightsail get-instance-port-states` to confirm there is exactly one
+TCP/22 rule, its IPv4 source is `192.0.2.1/32`, and it has no IPv6 CIDR or
+Lightsail alias. Confirm public TCP/22 is unreachable and private SSH still
+succeeds before continuing.
 
 ## Verify no infrastructure drift
 
@@ -358,7 +469,9 @@ Attach a concise summary to the implementation pull request containing:
 - the reviewed Git commit and OpenTofu plan resource counts;
 - successful backend verification;
 - the instance's region, image, bundle, disk, and running state;
-- the firewall rule shape with addresses redacted;
+- the sentinel-only Lightsail rule and private-only UFW rule shapes, with
+  addresses redacted;
+- successful private SSH and failed public TCP/22 probes;
 - confirmation that all three budget notifications exist;
 - the first Ansible recap and the second run's `changed=0` recap;
 - the no-drift plan's exit code `0`; and
@@ -380,18 +493,23 @@ tests/verify-cloud-foundation.sh
 tofu -chdir=infra/tofu plan -input=false
 ```
 
-If OpenTofu reports no unintended change, re-establish the verified SSH host
-key and rerun Ansible. Both the backend bootstrap and Ansible baseline are
-idempotent. Resource destruction requires a separate reviewed procedure and
-explicit approval; it is intentionally absent from this runbook.
+If OpenTofu reports no unintended change, restore the Tailscale client session,
+re-establish the verified SSH host key, and rerun Ansible over the private
+address. Do not widen the sentinel firewall rule as a routine recovery step.
+Both the backend bootstrap and Ansible baseline are idempotent. Resource
+destruction requires a separate reviewed procedure and explicit approval; it
+is intentionally absent from this runbook.
 
 ## Authoritative references
 
 - [ADR-0001: AWS Lightsail cloud foundation](../adr/0001-phase-1-cloud-foundation.md)
 - [ADR-0004: OpenTofu and Ansible automation](../adr/0004-use-opentofu-and-ansible-for-phase-1-automation.md)
+- [ADR-0005: Tailscale private administration](../adr/0005-use-tailscale-for-private-administration.md)
+- [AWS Lightsail default firewall rules](https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-firewall-and-port-mappings-in-amazon-lightsail.html#default-firewall-rules)
 - [AWS Lightsail SSH key and connection behavior](https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-ssh-in-amazon-lightsail.html)
 - [AWS CLI `get-instance-access-details`](https://docs.aws.amazon.com/cli/latest/reference/lightsail/get-instance-access-details.html)
 - [AWS CLI Login temporary credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html)
 - [AWS CLI role profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html)
 - [OpenTofu plan command](https://opentofu.org/docs/cli/commands/plan/)
 - [Ansible check and diff mode](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_checkmode.html)
+- [Tailscale key expiry](https://tailscale.com/docs/features/access-control/key-expiry)
