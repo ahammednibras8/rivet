@@ -16,13 +16,14 @@ expected_rules='---
     to_port: "22"
     comment: Rivet Tailscale administrative SSH
 
-- name: Allow SSH from the approved operator address
+- name: Remove legacy public-address SSH access
   community.general.ufw:
     rule: allow
     direction: in
     proto: tcp
     from_ip: "{{ rivet_operator_ipv4_cidr }}"
     to_port: "22"
+    delete: true
     comment: Rivet administrative SSH
 
 - name: Remove unrestricted SSH access
@@ -83,4 +84,4 @@ if ! grep -Fq 'RIVET_OPERATOR_IPV4_CIDR must be one IPv4 address with a /32 pref
   exit 1
 fi
 
-echo "The host firewall permits Tailscale and recovery SSH before enabling UFW."
+echo "The host firewall permits SSH only through Tailscale before enabling UFW."
