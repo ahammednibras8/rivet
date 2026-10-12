@@ -19,6 +19,7 @@ git -C "${repo_root}" ls-files -z \
   xargs -0 shellcheck -x
 
 "${repo_root}/tests/tofu-backend-init.sh"
+"${repo_root}/tests/tofu-network-policy.sh"
 "${repo_root}/tests/state-backend-preflight.sh"
 "${repo_root}/tests/aws-session.sh"
 "${repo_root}/tests/operator-role-policy.sh"
