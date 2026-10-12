@@ -1,0 +1,9 @@
+---
+- name: Verify Tailscale administrative transport installation
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+
+  roles:
+    - role: tailscale_admin

@@ -17,4 +17,5 @@
   roles:
     - role: system_baseline
     - role: ssh_hardening
+    - role: tailscale_admin
     - role: host_firewall

@@ -24,6 +24,7 @@ expected_playbook='---
   roles:
     - role: system_baseline
     - role: ssh_hardening
+    - role: tailscale_admin
     - role: host_firewall'
 
 if [[ "$(<"${playbook}")" != "${expected_playbook}" ]]; then

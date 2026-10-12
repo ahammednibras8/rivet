@@ -34,6 +34,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-ssh-key-policy.sh"
 "${repo_root}/tests/ssh-hardening-policy.sh"
 "${repo_root}/tests/ansible-ssh-role.sh"
+"${repo_root}/tests/ansible-tailscale-role.sh"
 "${repo_root}/tests/ansible-firewall-policy.sh"
 "${repo_root}/tests/ansible-site.sh"
 "${repo_root}/tests/repository-secrets.sh"
