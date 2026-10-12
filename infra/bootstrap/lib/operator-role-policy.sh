@@ -49,6 +49,12 @@ render_operator_state_policy() {
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "ListAccountBucketsForConsole",
+      "Effect": "Allow",
+      "Action": "s3:ListAllMyBuckets",
+      "Resource": "*"
+    },
+    {
       "Sid": "ManageRivetStateBucket",
       "Effect": "Allow",
       "Action": [
@@ -126,14 +132,20 @@ render_operator_lightsail_policy() {
         "lightsail:AttachStaticIp",
         "lightsail:CloseInstancePublicPorts",
         "lightsail:CreateInstances",
+        "lightsail:GetBlueprints",
         "lightsail:GetBundles",
         "lightsail:GetInstance",
         "lightsail:GetInstanceAccessDetails",
         "lightsail:GetInstancePortStates",
         "lightsail:GetInstanceState",
+        "lightsail:GetInstances",
         "lightsail:GetKeyPair",
+        "lightsail:GetKeyPairs",
         "lightsail:GetOperation",
+        "lightsail:GetOperations",
+        "lightsail:GetRegions",
         "lightsail:GetStaticIp",
+        "lightsail:GetStaticIps",
         "lightsail:ImportKeyPair",
         "lightsail:PutInstancePublicPorts",
         "lightsail:TagResource",

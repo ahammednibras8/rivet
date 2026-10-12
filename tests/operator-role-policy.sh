@@ -72,6 +72,12 @@ if ! jq -e \
     "Version": "2012-10-17",
     "Statement": [
       {
+        "Sid": "ListAccountBucketsForConsole",
+        "Effect": "Allow",
+        "Action": "s3:ListAllMyBuckets",
+        "Resource": "*"
+      },
+      {
         "Sid": "ManageRivetStateBucket",
         "Effect": "Allow",
         "Action": [
@@ -109,7 +115,7 @@ if ! jq -e \
       }
     ]
   }' <<<"$state_policy" >/dev/null; then
-  echo "The operator state policy exceeds or misses its exact backend permissions" >&2
+  echo "The operator state policy must expose bucket names while limiting bucket contents to Rivet state" >&2
   exit 1
 fi
 
@@ -146,14 +152,20 @@ if ! jq -e '
           "lightsail:AttachStaticIp",
           "lightsail:CloseInstancePublicPorts",
           "lightsail:CreateInstances",
+          "lightsail:GetBlueprints",
           "lightsail:GetBundles",
           "lightsail:GetInstance",
           "lightsail:GetInstanceAccessDetails",
           "lightsail:GetInstancePortStates",
           "lightsail:GetInstanceState",
+          "lightsail:GetInstances",
           "lightsail:GetKeyPair",
+          "lightsail:GetKeyPairs",
           "lightsail:GetOperation",
+          "lightsail:GetOperations",
+          "lightsail:GetRegions",
           "lightsail:GetStaticIp",
+          "lightsail:GetStaticIps",
           "lightsail:ImportKeyPair",
           "lightsail:PutInstancePublicPorts",
           "lightsail:TagResource",
