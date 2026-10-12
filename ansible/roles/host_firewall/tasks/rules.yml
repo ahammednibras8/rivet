@@ -1,4 +1,13 @@
 ---
+- name: Allow SSH over the private Tailscale interface
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: tailscale0
+    proto: tcp
+    to_port: "22"
+    comment: Rivet Tailscale administrative SSH
+
 - name: Allow SSH from the approved operator address
   community.general.ufw:
     rule: allow

@@ -7,6 +7,15 @@ config_file="${repo_root}/ansible/ansible.cfg"
 rules_file="${repo_root}/ansible/roles/host_firewall/tasks/rules.yml"
 fixtures_dir="${repo_root}/tests/fixtures/ansible"
 expected_rules='---
+- name: Allow SSH over the private Tailscale interface
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: tailscale0
+    proto: tcp
+    to_port: "22"
+    comment: Rivet Tailscale administrative SSH
+
 - name: Allow SSH from the approved operator address
   community.general.ufw:
     rule: allow
@@ -74,4 +83,4 @@ if ! grep -Fq 'RIVET_OPERATOR_IPV4_CIDR must be one IPv4 address with a /32 pref
   exit 1
 fi
 
-echo "The host firewall permits only operator-scoped SSH before enabling UFW."
+echo "The host firewall permits Tailscale and recovery SSH before enabling UFW."
