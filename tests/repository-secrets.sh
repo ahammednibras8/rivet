@@ -14,6 +14,7 @@ while IFS= read -r path; do
   case "${path}" in
     .env | .env.* | */.env | */.env.* | \
       *.tfstate | *.tfstate.* | *.tfplan | *.plan | \
+      tfplan* | */tfplan* | \
       *.pem | *.key | *.p12 | *.pfx | *.jks | \
       id_rsa | id_dsa | id_ecdsa | id_ed25519 | \
       */id_rsa | */id_dsa | */id_ecdsa | */id_ed25519 | \
