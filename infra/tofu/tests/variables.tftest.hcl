@@ -1,13 +1,17 @@
 mock_provider "aws" {}
 
 variables {
-  operator_ipv4_cidr        = "203.0.113.10/32"
   operator_ssh_public_key   = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7 rivet-test"
   budget_notification_email = "operator@example.com"
 }
 
 run "accepts_valid_operator_inputs" {
   command = plan
+
+  assert {
+    condition     = var.bootstrap_ipv4_cidr == "192.0.2.1/32"
+    error_message = "Bootstrap SSH must fail closed to the TEST-NET-1 sentinel unless explicitly overridden."
+  }
 
   assert {
     condition     = local.instance_name == "rivet-workspace"
@@ -100,6 +104,22 @@ run "accepts_valid_operator_inputs" {
 
   assert {
     condition = (
+      aws_lightsail_instance_public_ports.workspace.instance_name ==
+      aws_lightsail_instance.workspace.name &&
+      length(aws_lightsail_instance_public_ports.workspace.port_info) == 1 &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).protocol == "tcp" &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).from_port == 22 &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).to_port == 22 &&
+      one(aws_lightsail_instance_public_ports.workspace.port_info).cidrs ==
+      toset(["192.0.2.1/32"]) &&
+      length(one(aws_lightsail_instance_public_ports.workspace.port_info).ipv6_cidrs) == 0 &&
+      length(one(aws_lightsail_instance_public_ports.workspace.port_info).cidr_list_aliases) == 0
+    )
+    error_message = "The public firewall must replace Lightsail defaults with fail-closed bootstrap SSH only."
+  }
+
+  assert {
+    condition = (
       aws_budgets_budget.workspace.name == "rivet-monthly-cost" &&
       aws_budgets_budget.workspace.budget_type == "COST" &&
       aws_budgets_budget.workspace.limit_amount == "30" &&
@@ -154,15 +174,36 @@ run "accepts_valid_operator_inputs" {
   }
 }
 
-run "rejects_unrestricted_ssh" {
+run "accepts_scoped_bootstrap_ipv4" {
   command = plan
 
   variables {
-    operator_ipv4_cidr = "0.0.0.0/0"
+    bootstrap_ipv4_cidr = "203.0.113.10/32"
+  }
+
+  assert {
+    condition     = var.bootstrap_ipv4_cidr == "203.0.113.10/32"
+    error_message = "Bootstrap SSH must accept one explicitly supplied IPv4 /32."
+  }
+
+  assert {
+    condition = (
+      one(aws_lightsail_instance_public_ports.workspace.port_info).cidrs ==
+      toset(["203.0.113.10/32"])
+    )
+    error_message = "The public firewall must use the explicitly supplied bootstrap IPv4 /32."
+  }
+}
+
+run "rejects_unrestricted_bootstrap_ssh" {
+  command = plan
+
+  variables {
+    bootstrap_ipv4_cidr = "0.0.0.0/0"
   }
 
   expect_failures = [
-    var.operator_ipv4_cidr,
+    var.bootstrap_ipv4_cidr,
   ]
 }
 

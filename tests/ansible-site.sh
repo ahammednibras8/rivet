@@ -33,7 +33,6 @@ if [[ "$(<"${playbook}")" != "${expected_playbook}" ]]; then
 fi
 
 RIVET_WORKSPACE_IP="203.0.113.10" \
-  RIVET_OPERATOR_IPV4_CIDR="198.51.100.42/32" \
   ANSIBLE_CONFIG="${config_file}" \
   ansible-playbook --syntax-check "${playbook}"
 

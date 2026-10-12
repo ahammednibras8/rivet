@@ -6,10 +6,12 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tofu_dir="${repo_root}/infra/tofu"
 
 if rg --quiet \
-  'resource[[:space:]]+"aws_lightsail_instance_public_ports"' \
+  --glob '*.tf' \
+  --glob '*.tftest.hcl' \
+  'operator_ipv4_cidr' \
   "${tofu_dir}"; then
-  echo "The workspace must not expose Lightsail public ports; administrative SSH uses Tailscale." >&2
+  echo "OpenTofu still requires the retired public-address input." >&2
   exit 1
 fi
 
-echo "The workspace exposes no Lightsail public ports."
+echo "The workspace replaces Lightsail defaults with scoped bootstrap SSH; routine administration uses Tailscale."

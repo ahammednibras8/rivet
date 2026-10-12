@@ -51,7 +51,26 @@ expected_tasks='---
     name: tailscaled
     enabled: true
     state: started
-  when: not (ansible_check_mode and tailscale_repository.changed)'
+  when: not (ansible_check_mode and tailscale_repository.changed)
+
+- name: Read Tailscale enrollment state
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/tailscale
+      - status
+      - --json
+  register: rivet_tailscale_status
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Require private administrative connectivity
+  ansible.builtin.assert:
+    that:
+      - (rivet_tailscale_status.stdout | from_json).BackendState == "Running"
+    fail_msg: >-
+      Tailscale must be enrolled and running before the host firewall is
+      enabled. Follow the runbook interactive-enrollment checkpoint.
+  when: not ansible_check_mode'
 
 if [[ ! -f "$tasks_file" ]]; then
   printf 'Missing Tailscale role tasks: %s\n' "$tasks_file" >&2
@@ -74,4 +93,4 @@ ANSIBLE_CONFIG="$config_file" \
     --syntax-check \
     "$fixture"
 
-printf 'The pinned Tailscale client is installed without embedding enrollment authority.\n'
+printf 'The pinned Tailscale client requires enrollment before private-only firewall convergence.\n'

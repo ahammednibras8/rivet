@@ -43,3 +43,22 @@
     enabled: true
     state: started
   when: not (ansible_check_mode and tailscale_repository.changed)
+
+- name: Read Tailscale enrollment state
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/tailscale
+      - status
+      - --json
+  register: rivet_tailscale_status
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Require private administrative connectivity
+  ansible.builtin.assert:
+    that:
+      - (rivet_tailscale_status.stdout | from_json).BackendState == "Running"
+    fail_msg: >-
+      Tailscale must be enrolled and running before the host firewall is
+      enabled. Follow the runbook interactive-enrollment checkpoint.
+  when: not ansible_check_mode

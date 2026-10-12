@@ -1,15 +1,16 @@
-variable "operator_ipv4_cidr" {
-  description = "Single public IPv4 address allowed to reach SSH, written as a /32 CIDR."
+variable "bootstrap_ipv4_cidr" {
+  description = "Single IPv4 /32 temporarily allowed for initial Tailscale bootstrap; defaults to an unroutable TEST-NET-1 address."
   type        = string
+  default     = "192.0.2.1/32"
   nullable    = false
 
   validation {
     condition = (
-      var.operator_ipv4_cidr == trimspace(var.operator_ipv4_cidr) &&
-      can(cidrnetmask(var.operator_ipv4_cidr)) &&
-      can(regex("/32$", var.operator_ipv4_cidr))
+      var.bootstrap_ipv4_cidr == trimspace(var.bootstrap_ipv4_cidr) &&
+      can(cidrnetmask(var.bootstrap_ipv4_cidr)) &&
+      can(regex("/32$", var.bootstrap_ipv4_cidr))
     )
-    error_message = "operator_ipv4_cidr must be one public IPv4 address using /32 notation."
+    error_message = "bootstrap_ipv4_cidr must be one IPv4 address using /32 notation."
   }
 }
 
