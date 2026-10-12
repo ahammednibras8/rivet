@@ -102,6 +102,30 @@ as an IAM user; that is not sufficient for infrastructure operations. Do not
 continue with a root or IAM-user ARN. The bootstrap scripts repeat this check
 and stop on failure.
 
+## Inspect the scoped AWS resources
+
+Never use the AWS root identity for routine resource inspection. The
+`rivet-operator` role can list the account's bucket names and access only the
+Rivet state objects authorized by its state policy. After switching to
+`rivet-operator`, the S3 console can display that bucket.
+
+The Lightsail console is not a supported operator interface. AWS documents
+that the console expects unrestricted `lightsail:*` permission and does not
+function reliably with a narrower policy. Rivet does not grant destructive
+Lightsail access merely to satisfy that console. Inspect the workspace through
+the scoped CLI instead:
+
+```bash
+AWS_PROFILE=rivet-operator aws lightsail get-instances \
+  --region ap-south-1 \
+  --query 'instances[].{Name:name,State:state.name,Image:blueprintId,Plan:bundleId}' \
+  --output table
+```
+
+The result must contain only the expected `rivet-workspace` instance. Use
+OpenTofu for plans and changes; reserve the root bootstrap identity for the
+documented IAM bootstrap procedure.
+
 ## Prepare runtime inputs
 
 Use an existing RSA SSH key dedicated to Rivet, or create one outside the
@@ -507,6 +531,7 @@ is intentionally absent from this runbook.
 - [ADR-0005: Tailscale private administration](../adr/0005-use-tailscale-for-private-administration.md)
 - [AWS Lightsail default firewall rules](https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-firewall-and-port-mappings-in-amazon-lightsail.html#default-firewall-rules)
 - [AWS Lightsail SSH key and connection behavior](https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-ssh-in-amazon-lightsail.html)
+- [AWS Lightsail least-privilege and console behavior](https://docs.aws.amazon.com/lightsail/latest/userguide/security_iam_id-based-policy-examples.html)
 - [AWS CLI `get-instance-access-details`](https://docs.aws.amazon.com/cli/latest/reference/lightsail/get-instance-access-details.html)
 - [AWS CLI Login temporary credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html)
 - [AWS CLI role profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html)
