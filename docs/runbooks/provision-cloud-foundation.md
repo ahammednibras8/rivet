@@ -190,7 +190,7 @@ tofu -chdir=infra/tofu show -no-color tfplan
 The working tree must contain no unexpected file. The plan must contain only:
 
 - one Lightsail key pair named `rivet-operator`;
-- one Ubuntu 24.04 x86-64 `medium_3_0` instance named `rivet-workspace` in
+- one Ubuntu 24.04 x86-64 `medium_3_1` instance named `rivet-workspace` in
   `ap-south-1a`;
 - one attached static IPv4 address named `rivet-workspace-ip`;
 - one Lightsail firewall policy allowing TCP port 22 only from the supplied

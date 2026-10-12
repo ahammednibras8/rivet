@@ -42,7 +42,7 @@ run "accepts_valid_operator_inputs" {
       aws_lightsail_instance.workspace.name == "rivet-workspace" &&
       aws_lightsail_instance.workspace.availability_zone == "ap-south-1a" &&
       aws_lightsail_instance.workspace.blueprint_id == "ubuntu_24_04" &&
-      aws_lightsail_instance.workspace.bundle_id == "medium_3_0" &&
+      aws_lightsail_instance.workspace.bundle_id == "medium_3_1" &&
       aws_lightsail_instance.workspace.ip_address_type == "ipv4"
     )
     error_message = "The Lightsail instance must match the accepted location, image, size, and address type."
@@ -58,10 +58,24 @@ run "accepts_valid_operator_inputs" {
 
   assert {
     condition = (
-      yamldecode(aws_lightsail_instance.workspace.user_data).users[1].name ==
-      "rivet-admin"
+      startswith(
+        aws_lightsail_instance.workspace.user_data,
+        "#!/usr/bin/env bash\n"
+      ) &&
+      strcontains(
+        aws_lightsail_instance.workspace.user_data,
+        "passwd --lock rivet-admin"
+      ) &&
+      strcontains(
+        aws_lightsail_instance.workspace.user_data,
+        "/usr/sbin/ufw --force disable"
+      ) &&
+      strcontains(
+        aws_lightsail_instance.workspace.user_data,
+        "rivet_operator_public_key=\"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7 rivet-test\""
+      )
     )
-    error_message = "The Lightsail instance must receive the reviewed cloud-init template."
+    error_message = "The Lightsail instance must receive the reviewed shell bootstrap."
   }
 
   assert {

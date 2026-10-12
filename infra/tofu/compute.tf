@@ -11,7 +11,7 @@ resource "aws_lightsail_instance" "workspace" {
   key_pair_name     = aws_lightsail_key_pair.operator.name
   ip_address_type   = "ipv4"
 
-  user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
+  user_data = templatefile("${path.module}/bootstrap.sh.tftpl", {
     operator_ssh_public_key = trimspace(var.operator_ssh_public_key)
   })
 

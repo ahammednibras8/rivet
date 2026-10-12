@@ -4,8 +4,11 @@
   changed_when: false
   listen: Reload SSH
 
-- name: Reload SSH service
-  ansible.builtin.service:
-    name: ssh
-    state: reloaded
+- name: Reload active SSH service
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/systemctl
+      - reload-or-try-restart
+      - ssh.service
+  changed_when: false
   listen: Reload SSH

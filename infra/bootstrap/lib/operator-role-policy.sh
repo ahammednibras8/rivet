@@ -126,6 +126,7 @@ render_operator_lightsail_policy() {
         "lightsail:AttachStaticIp",
         "lightsail:CloseInstancePublicPorts",
         "lightsail:CreateInstances",
+        "lightsail:GetBundles",
         "lightsail:GetInstance",
         "lightsail:GetInstanceAccessDetails",
         "lightsail:GetInstancePortStates",

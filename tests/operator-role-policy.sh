@@ -146,6 +146,7 @@ if ! jq -e '
           "lightsail:AttachStaticIp",
           "lightsail:CloseInstancePublicPorts",
           "lightsail:CreateInstances",
+          "lightsail:GetBundles",
           "lightsail:GetInstance",
           "lightsail:GetInstanceAccessDetails",
           "lightsail:GetInstancePortStates",

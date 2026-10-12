@@ -3,11 +3,10 @@ variable "operator_ssh_public_key" {
 }
 
 locals {
-  rendered_cloud_init = templatefile(
-    "${path.module}/../../../infra/tofu/cloud-init.yaml.tftpl",
+  rendered_bootstrap = templatefile(
+    "${path.module}/../../../infra/tofu/bootstrap.sh.tftpl",
     {
       operator_ssh_public_key = var.operator_ssh_public_key
     }
   )
-  cloud_init = yamldecode(local.rendered_cloud_init)
 }

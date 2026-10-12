@@ -6,51 +6,71 @@ run "renders_minimal_ansible_bridge" {
   command = plan
 
   assert {
-    condition     = local.cloud_init.package_update == true
-    error_message = "Cloud-init must refresh package metadata."
+    condition = startswith(
+      local.rendered_bootstrap,
+      "#!/usr/bin/env bash\n\nset -eu\n"
+    )
+    error_message = "The Lightsail bootstrap must be a fail-fast Bash script."
   }
 
   assert {
-    condition = toset(local.cloud_init.packages) == toset([
-      "python3",
-      "python3-apt",
-      "ufw",
+    condition = alltrue([
+      strcontains(local.rendered_bootstrap, "apt-get update"),
+      strcontains(local.rendered_bootstrap, "python3"),
+      strcontains(local.rendered_bootstrap, "python3-apt"),
+      strcontains(local.rendered_bootstrap, "ufw"),
     ])
-    error_message = "Cloud-init must install only the managed-node prerequisites required for Ansible check mode."
+    error_message = "The bootstrap must install the managed-node prerequisites required by Ansible."
+  }
+
+  assert {
+    condition = strcontains(
+      local.rendered_bootstrap,
+      "/usr/sbin/ufw --force disable"
+    )
+    error_message = "The bootstrap must leave UFW disabled until Ansible installs the approved operator rule."
+  }
+
+  assert {
+    condition = alltrue([
+      strcontains(local.rendered_bootstrap, "useradd"),
+      strcontains(local.rendered_bootstrap, "--create-home"),
+      strcontains(local.rendered_bootstrap, "--groups adm,sudo"),
+      strcontains(local.rendered_bootstrap, "passwd --lock rivet-admin"),
+      strcontains(local.rendered_bootstrap, "rivet-admin ALL=(ALL) NOPASSWD:ALL"),
+    ])
+    error_message = "The bootstrap must create the locked Rivet administrator with passwordless sudo."
+  }
+
+  assert {
+    condition = strcontains(
+      local.rendered_bootstrap,
+      "rivet_operator_public_key=\"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7 rivet-test\""
+    )
+    error_message = "The bootstrap must install exactly the supplied public key."
+  }
+
+  assert {
+    condition = alltrue([
+      strcontains(local.rendered_bootstrap, "PermitRootLogin no"),
+      strcontains(local.rendered_bootstrap, "PasswordAuthentication no"),
+      strcontains(local.rendered_bootstrap, "KbdInteractiveAuthentication no"),
+      strcontains(local.rendered_bootstrap, "AuthenticationMethods publickey"),
+      strcontains(local.rendered_bootstrap, "AllowUsers rivet-admin ubuntu"),
+      strcontains(local.rendered_bootstrap, "install -d -m 0755 /run/sshd"),
+      strcontains(local.rendered_bootstrap, "/usr/sbin/sshd -t"),
+      strcontains(local.rendered_bootstrap, "systemctl reload-or-try-restart ssh.service"),
+    ])
+    error_message = "The bootstrap must validate and install the initial SSH hardening policy."
   }
 
   assert {
     condition = (
-      length(local.cloud_init.users) == 2 &&
-      local.cloud_init.users[0] == "default" &&
-      local.cloud_init.users[1].name == "rivet-admin" &&
-      local.cloud_init.users[1].lock_passwd == true &&
-      local.cloud_init.users[1].sudo == "ALL=(ALL) NOPASSWD:ALL"
+      !strcontains(local.rendered_bootstrap, "PRIVATE KEY") &&
+      !strcontains(local.rendered_bootstrap, "BEGIN OPENSSH") &&
+      !strcontains(local.rendered_bootstrap, "curl ") &&
+      !strcontains(local.rendered_bootstrap, "wget ")
     )
-    error_message = "Cloud-init must retain the default user and create the locked Rivet administrator."
-  }
-
-  assert {
-    condition = local.cloud_init.users[1].ssh_authorized_keys == [
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7 rivet-test",
-    ]
-    error_message = "Cloud-init must install exactly the supplied public key."
-  }
-
-  assert {
-    condition = (
-      local.cloud_init.ssh_pwauth == false &&
-      local.cloud_init.disable_root == true
-    )
-    error_message = "Cloud-init must disable password and root SSH login."
-  }
-
-  assert {
-    condition = (
-      !contains(keys(local.cloud_init), "runcmd") &&
-      !contains(keys(local.cloud_init), "write_files") &&
-      !strcontains(local.rendered_cloud_init, "PRIVATE KEY")
-    )
-    error_message = "Cloud-init must not contain provisioning commands, embedded files, or private keys."
+    error_message = "The bootstrap must not contain private keys or download executable content."
   }
 }
