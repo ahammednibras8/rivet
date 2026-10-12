@@ -4,7 +4,7 @@ output "workspace_instance_name" {
 }
 
 output "workspace_ipv4_address" {
-  description = "Static public IPv4 address used by the authorized Ansible control node."
+  description = "Static public IPv4 address used for scoped bootstrap and verified host identity."
   value       = aws_lightsail_static_ip_attachment.workspace.ip_address
 }
 
