@@ -53,6 +53,8 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/github-codex-onboarding-docs.sh"
 "${repo_root}/tests/laptop-independent-baseline-policy.sh"
 "${repo_root}/tests/laptop-independent-operation-docs.sh"
+"${repo_root}/tests/mobile-thread-continuation-policy.sh"
+"${repo_root}/tests/mobile-thread-continuation-docs.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check

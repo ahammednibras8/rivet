@@ -306,6 +306,11 @@ records and compares protected cloud identities around a real laptop-off,
 mobile-data verification without publishing host, environment, thread, or
 process identifiers.
 
+The [mobile thread-continuation runbook](docs/runbooks/verify-mobile-thread-continuation.md)
+proves that Android can reopen and continue the exact cloud-hosted thread,
+preserve its prior context, deny access after phone-session revocation, and
+recover after fresh authorization without relinking the host.
+
 Implementation issues must still resolve these choices with security and test
 evidence:
 
