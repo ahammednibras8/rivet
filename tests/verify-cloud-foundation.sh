@@ -32,6 +32,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-t3-code-link.sh"
 "${repo_root}/tests/ansible-t3-code-linger.sh"
 "${repo_root}/tests/ansible-t3-code-service-install.sh"
+"${repo_root}/tests/ansible-t3-code-loopback.sh"
 "${repo_root}/tests/ansible-t3-code-service-state.sh"
 "${repo_root}/tests/ansible-collection-pin.sh"
 "${repo_root}/tests/ansible-config.sh"

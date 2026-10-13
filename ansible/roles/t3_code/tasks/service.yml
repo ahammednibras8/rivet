@@ -38,6 +38,40 @@
     "Updated T3 Code service" in t3_code_service_install.stdout
   when: not ansible_check_mode
 
+- name: Maintain T3 Code service override directory
+  ansible.builtin.file:
+    path: /home/rivet/.config/systemd/user/t3code.service.d
+    state: directory
+    owner: rivet
+    group: rivet
+    mode: "0700"
+
+- name: Pin T3 Code service to loopback
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      Environment=T3CODE_HOST=127.0.0.1
+    dest: /home/rivet/.config/systemd/user/t3code.service.d/10-loopback.conf
+    owner: rivet
+    group: rivet
+    mode: "0600"
+  register: t3_code_loopback_override
+
+- name: Apply T3 Code loopback service override
+  ansible.builtin.systemd_service:
+    name: t3code.service
+    scope: user
+    daemon_reload: true
+    state: restarted
+  become: true
+  become_user: rivet
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd.rivet[1] }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ getent_passwd.rivet[1] }}/bus"
+  when:
+    - not ansible_check_mode
+    - t3_code_loopback_override.changed
+
 - name: Read T3 Code service enabled state
   ansible.builtin.command:
     argv:
