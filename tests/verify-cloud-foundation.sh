@@ -27,6 +27,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-version-pin.sh"
 "${repo_root}/tests/ansible-t3-code-version-pin.sh"
 "${repo_root}/tests/ansible-t3-code-layout.sh"
+"${repo_root}/tests/ansible-t3-code-download.sh"
 "${repo_root}/tests/ansible-collection-pin.sh"
 "${repo_root}/tests/ansible-config.sh"
 "${repo_root}/tests/ansible-inventory.sh"

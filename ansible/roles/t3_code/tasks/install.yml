@@ -1,0 +1,9 @@
+---
+- name: Download reviewed T3 Code release
+  ansible.builtin.get_url:
+    url: "{{ t3_code_release_url }}"
+    dest: "/var/cache/rivet/t3-code/{{ t3_code_release_archive }}"
+    checksum: "sha256:{{ t3_code_release_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"

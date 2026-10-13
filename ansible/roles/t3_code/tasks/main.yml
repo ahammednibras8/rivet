@@ -1,3 +1,6 @@
 ---
 - name: Prepare the T3 Code filesystem
   ansible.builtin.import_tasks: layout.yml
+
+- name: Download the reviewed T3 Code release
+  ansible.builtin.import_tasks: install.yml
