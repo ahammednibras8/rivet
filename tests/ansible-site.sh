@@ -25,7 +25,8 @@ expected_playbook='---
     - role: system_baseline
     - role: ssh_hardening
     - role: tailscale_admin
-    - role: host_firewall'
+    - role: host_firewall
+    - role: t3_code'
 
 if [[ "$(<"${playbook}")" != "${expected_playbook}" ]]; then
   echo "Unexpected role composition or execution order in ${playbook}" >&2

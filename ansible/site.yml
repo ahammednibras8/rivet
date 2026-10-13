@@ -19,3 +19,4 @@
     - role: ssh_hardening
     - role: tailscale_admin
     - role: host_firewall
+    - role: t3_code
