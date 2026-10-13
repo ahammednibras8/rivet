@@ -50,6 +50,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-tailscale-role.sh"
 "${repo_root}/tests/ansible-firewall-policy.sh"
 "${repo_root}/tests/ansible-site.sh"
+"${repo_root}/tests/github-codex-onboarding-docs.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check

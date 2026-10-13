@@ -9,9 +9,10 @@ providers, and development tools on a persistent cloud host. The existing T3
 Code mobile app connects to that host, and the developer continues the same
 threads, worktrees, tests, diffs, and pull requests from anywhere.
 
-> **Project status:** The AWS cloud foundation and secure T3 Connect access are
-> provisioned and verified. Repository and agent-provider setup remain future
-> implementation issues.
+> **Project status:** The AWS cloud foundation, secure T3 Connect access, and
+> the first repository and coding-agent provider are provisioned and verified.
+> Mobile code-change, pull-request, persistence, recovery, and operations work
+> remains in later implementation issues.
 
 ## The problem
 
@@ -293,12 +294,16 @@ The [T3 Connect operations runbook](docs/runbooks/operate-t3-connect.md) covers
 the reviewed headless authorization, mobile connection, device revocation,
 environment deregistration, recovery, and failure-isolation workflow.
 
+The [GitHub and Codex onboarding runbook](docs/runbooks/onboard-github-and-codex.md)
+covers the approved repository boundary, read-only GitHub credential,
+cloud-owned checkout, managed Codex provider, supervised mobile thread, and
+credential rotation workflow.
+
 Implementation issues must still resolve these choices with security and test
 evidence:
 
 - persistent-volume and workspace-backup procedures;
-- secret storage and credential rotation;
-- the supported coding-agent provider for the first end-to-end proof;
+- backup and recovery for the verified secret stores;
 - the T3 Code update and rollback policy; and
 - the health-monitoring and notification path.
 
