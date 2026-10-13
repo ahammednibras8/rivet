@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+: "${FAKE_TOFU_LOG:?FAKE_TOFU_LOG is required}"
+printf '%s\n' "$*" >>"$FAKE_TOFU_LOG"
+
+if [[ "$#" == "2" && "$1" == "version" && "$2" == "-json" ]]; then
+  printf '{"terraform_version":"%s"}\n' "${FAKE_TOFU_VERSION:-1.13.1}"
+  exit 0
+fi
+
+if [[ "$#" == "5" &&
+  "$1" == "-chdir=${FAKE_TOFU_DIRECTORY:?FAKE_TOFU_DIRECTORY is required}" &&
+  "$2" == "init" &&
+  "$3" == "-input=false" &&
+  "$4" == "-reconfigure" &&
+  "$5" == "-backend-config=bucket=rivet-tofu-state-123456789012-ap-south-1-an" ]]; then
+  if [[ "${FAKE_TOFU_STATUS:-0}" != "0" ]]; then
+    printf 'simulated OpenTofu initialization failure\n' >&2
+    exit "$FAKE_TOFU_STATUS"
+  fi
+
+  printf 'OpenTofu backend initialized.\n'
+  exit 0
+fi
+
+printf 'unexpected OpenTofu call: %s\n' "$*" >&2
+exit 64

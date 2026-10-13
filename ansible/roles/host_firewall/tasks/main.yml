@@ -1,0 +1,3 @@
+---
+- name: Configure the host firewall
+  ansible.builtin.import_tasks: rules.yml

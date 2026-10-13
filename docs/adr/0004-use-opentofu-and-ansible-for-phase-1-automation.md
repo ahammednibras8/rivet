@@ -42,7 +42,7 @@ Phase 1 will use this automation toolchain:
 | Backend bootstrap | AWS CLI v2 through a reviewed, idempotent procedure |
 | First-boot bridge | Minimal cloud-init passed as Lightsail user data |
 | Ubuntu configuration | Ansible Core |
-| Host transport | SSH from an authorized control node |
+| Host transport | Hardened OpenSSH over the private Tailscale network |
 | Apply model | Manual plan, human approval, manual apply |
 
 OpenTofu owns AWS resources. Ansible owns operating-system state. Cloud-init
@@ -206,9 +206,9 @@ against an unchanged host must produce no second-run changes except tasks whose
 non-idempotence is explicitly justified and tested.
 
 SSH must use keys and host-key verification. Port 22 must not remain open to
-all IPv4 or IPv6 addresses merely to simplify Ansible. The exact
-administrative-access and recovery policy requires its own verified
-implementation before provisioning.
+all IPv4 or IPv6 addresses merely to simplify Ansible. ADR-0005 defines the
+scoped bootstrap, Tailscale enrollment guard, private-only host firewall, and
+fail-closed Lightsail sentinel used by the verified implementation.
 
 ## Acceptance gate
 

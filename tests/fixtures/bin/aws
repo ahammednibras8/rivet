@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+: "${FAKE_AWS_LOG:?FAKE_AWS_LOG is required}"
+printf '%s\n' "$*" >>"$FAKE_AWS_LOG"
+
+if [[ "${1:-}" == "iam" &&
+  ("${2:-}" == "create-role" || "${2:-}" == "update-assume-role-policy") ]]; then
+  trust_policy_uri=""
+  previous_argument=""
+
+  for argument in "$@"; do
+    if [[ "$previous_argument" == "--assume-role-policy-document" ||
+      "$previous_argument" == "--policy-document" ]]; then
+      trust_policy_uri="$argument"
+      break
+    fi
+    previous_argument="$argument"
+  done
+
+  [[ "$trust_policy_uri" == file://* ]] || {
+    printf 'missing file-based trust policy\n' >&2
+    exit 64
+  }
+  : "${FAKE_TRUST_POLICY_FILE:?FAKE_TRUST_POLICY_FILE is required}"
+  command cp "${trust_policy_uri#file://}" "$FAKE_TRUST_POLICY_FILE"
+
+  if [[ "$2" == "create-role" ]]; then
+    printf '%s\n' 'arn:aws:iam::123456789012:role/rivet-operator'
+  fi
+  exit 0
+fi
+
+if [[ "${1:-}" == "iam" &&
+  ("${2:-}" == "update-role" || "${2:-}" == "tag-role") ]]; then
+  exit 0
+fi
+
+if [[ "${1:-}" == "iam" && "${2:-}" == "put-user-policy" ]]; then
+  policy_uri=""
+  previous_argument=""
+
+  for argument in "$@"; do
+    if [[ "$previous_argument" == "--policy-document" ]]; then
+      policy_uri="$argument"
+      break
+    fi
+    previous_argument="$argument"
+  done
+
+  [[ "$policy_uri" == file://* ]] || {
+    printf 'missing file-based user policy\n' >&2
+    exit 64
+  }
+  : "${FAKE_USER_POLICY_FILE:?FAKE_USER_POLICY_FILE is required}"
+  command cp "${policy_uri#file://}" "$FAKE_USER_POLICY_FILE"
+  exit 0
+fi
+
+if [[ "${1:-}" == "iam" && "${2:-}" == "put-role-policy" ]]; then
+  policy_name=""
+  policy_uri=""
+  previous_argument=""
+
+  for argument in "$@"; do
+    if [[ "$previous_argument" == "--policy-name" ]]; then
+      policy_name="$argument"
+    elif [[ "$previous_argument" == "--policy-document" ]]; then
+      policy_uri="$argument"
+    fi
+    previous_argument="$argument"
+  done
+
+  [[ "$policy_uri" == file://* ]] || {
+    printf 'missing file-based role policy\n' >&2
+    exit 64
+  }
+
+  case "$policy_name" in
+    rivet-state-backend)
+      destination="${FAKE_STATE_POLICY_FILE:?FAKE_STATE_POLICY_FILE is required}"
+      ;;
+    rivet-identity)
+      destination="${FAKE_IDENTITY_POLICY_FILE:?FAKE_IDENTITY_POLICY_FILE is required}"
+      ;;
+    rivet-lightsail)
+      destination="${FAKE_LIGHTSAIL_POLICY_FILE:?FAKE_LIGHTSAIL_POLICY_FILE is required}"
+      ;;
+    rivet-budget)
+      destination="${FAKE_BUDGET_POLICY_FILE:?FAKE_BUDGET_POLICY_FILE is required}"
+      ;;
+    *)
+      printf 'unexpected role policy name: %s\n' "$policy_name" >&2
+      exit 64
+      ;;
+  esac
+
+  command cp "${policy_uri#file://}" "$destination"
+  exit 0
+fi
+
+if [[ "${1:-}" == "s3api" && "${2:-}" == "put-bucket-policy" ]]; then
+  if [[ "$#" != "10" || "$3" != "--bucket" ||
+    "$4" != "rivet-tofu-state-123456789012-ap-south-1-an" ||
+    "$5" != "--expected-bucket-owner" || "$6" != "123456789012" ||
+    "$7" != "--policy" || "$9" != "--region" ||
+    "${10}" != "ap-south-1" ]]; then
+    printf 'unexpected put-bucket-policy arguments\n' >&2
+    exit 64
+  fi
+
+  : "${FAKE_POLICY_FILE:?FAKE_POLICY_FILE is required}"
+  printf '%s\n' "$8" >"$FAKE_POLICY_FILE"
+  [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-policy" ]] || exit 71
+  exit 0
+fi
+
+# The lifecycle-query backticks below are JMESPath literals.
+# shellcheck disable=SC2016
+case "$*" in
+  'sts get-caller-identity --region ap-south-1 --query [Account,Arn] --output text')
+    if [[ "${FAKE_AWS_STATUS:-0}" != "0" ]]; then
+      printf 'simulated AWS authentication failure\n' >&2
+      exit "$FAKE_AWS_STATUS"
+    fi
+
+    printf '%b\n' "${FAKE_AWS_IDENTITY:?FAKE_AWS_IDENTITY is required}"
+    ;;
+  'iam get-role --role-name rivet-operator --region ap-south-1 --query Role.Arn --output text')
+    if [[ "${FAKE_IAM_STATUS:-0}" != "0" ]]; then
+      printf 'simulated IAM role lookup failure\n' >&2
+      exit "$FAKE_IAM_STATUS"
+    fi
+
+    printf '%s\n' "${FAKE_ROLE_ARN:-arn:aws:iam::123456789012:role/rivet-operator}"
+    ;;
+  'iam get-user --user-name rivet-developer --region ap-south-1 --query User.Arn --output text')
+    if [[ "${FAKE_IAM_STATUS:-0}" != "0" ]]; then
+      printf 'simulated IAM identity lookup failure\n' >&2
+      exit "$FAKE_IAM_STATUS"
+    fi
+
+    printf '%s\n' "${FAKE_USER_ARN:-arn:aws:iam::123456789012:user/rivet-developer}"
+    ;;
+  'iam list-roles --region ap-south-1 --query Roles[?RoleName==`rivet-operator`].Arn | [0] --output text')
+    printf '%s\n' "${FAKE_EXISTING_ROLE_ARN:-None}"
+    ;;
+  'iam list-user-policies --user-name rivet-developer --region ap-south-1 --query sort(PolicyNames) --output json')
+    printf '%s\n' "${FAKE_USER_INLINE_POLICIES:-[\"rivet-assume-operator\"]}"
+    ;;
+  'iam list-attached-user-policies --user-name rivet-developer --region ap-south-1 --query sort(AttachedPolicies[].PolicyName) --output json')
+    printf '%s\n' "${FAKE_USER_ATTACHED_POLICIES:-[\"IAMUserChangePassword\",\"SignInLocalDevelopmentAccess\"]}"
+    ;;
+  'iam list-role-policies --role-name rivet-operator --region ap-south-1 --query sort(PolicyNames) --output json')
+    printf '%s\n' "${FAKE_ROLE_INLINE_POLICIES:-[\"rivet-budget\",\"rivet-identity\",\"rivet-lightsail\",\"rivet-state-backend\"]}"
+    ;;
+  'iam list-attached-role-policies --role-name rivet-operator --region ap-south-1 --query sort(AttachedPolicies[].PolicyName) --output json')
+    printf '%s\n' "${FAKE_ROLE_ATTACHED_POLICIES:-[]}"
+    ;;
+  's3api head-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1')
+    [[ "${FAKE_BUCKET_EXISTS:-false}" == "true" ]]
+    ;;
+  's3api create-bucket --bucket rivet-tofu-state-123456789012-ap-south-1-an --bucket-namespace account-regional --object-ownership BucketOwnerEnforced --create-bucket-configuration LocationConstraint=ap-south-1 --region ap-south-1')
+    if [[ "${FAKE_CREATE_STATUS:-0}" != "0" ]]; then
+      printf 'simulated bucket collision\n' >&2
+      exit "$FAKE_CREATE_STATUS"
+    fi
+    ;;
+  's3api get-bucket-location --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query LocationConstraint --output text')
+    printf '%s\n' "${FAKE_BUCKET_REGION:-ap-south-1}"
+    ;;
+  's3api put-bucket-ownership-controls --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --ownership-controls Rules=[{ObjectOwnership=BucketOwnerEnforced}] --region ap-south-1')
+    [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-ownership-controls" ]] || exit 71
+    ;;
+  's3api put-public-access-block --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true --region ap-south-1')
+    [[ "${FAKE_FAIL_OPERATION:-}" != "put-public-access-block" ]] || exit 71
+    ;;
+  's3api put-bucket-encryption --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --server-side-encryption-configuration Rules=[{ApplyServerSideEncryptionByDefault={SSEAlgorithm=AES256}}] --region ap-south-1')
+    [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-encryption" ]] || exit 71
+    ;;
+  's3api put-bucket-versioning --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --versioning-configuration Status=Enabled --region ap-south-1')
+    [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-versioning" ]] || exit 71
+    ;;
+  's3api put-bucket-tagging --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --tagging TagSet=[{Key=ManagedBy,Value=AWSCLI},{Key=Project,Value=Rivet},{Key=Workspace,Value=primary}] --region ap-south-1')
+    [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-tagging" ]] || exit 71
+    ;;
+  's3api put-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --lifecycle-configuration Rules=[{ID=LimitNoncurrentStateAndLockVersions,Status=Enabled,Filter={Prefix=rivet/},NoncurrentVersionExpiration={NoncurrentDays=90,NewerNoncurrentVersions=10},Expiration={ExpiredObjectDeleteMarker=true}}] --region ap-south-1')
+    [[ "${FAKE_FAIL_OPERATION:-}" != "put-bucket-lifecycle-configuration" ]] || exit 71
+    ;;
+  's3api get-bucket-ownership-controls --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query OwnershipControls.Rules[0].ObjectOwnership --output text')
+    printf '%s\n' "${FAKE_OWNERSHIP:-BucketOwnerEnforced}"
+    ;;
+  's3api get-public-access-block --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query PublicAccessBlockConfiguration.[BlockPublicAcls,IgnorePublicAcls,BlockPublicPolicy,RestrictPublicBuckets] --output text')
+    printf '%b\n' "${FAKE_PUBLIC_ACCESS:-True\\tTrue\\tTrue\\tTrue}"
+    ;;
+  's3api get-bucket-encryption --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm --output text')
+    printf '%s\n' "${FAKE_ENCRYPTION:-AES256}"
+    ;;
+  's3api get-bucket-versioning --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query Status --output text')
+    printf '%s\n' "${FAKE_VERSIONING:-Enabled}"
+    ;;
+  's3api get-bucket-tagging --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query sort_by(TagSet, &Key)[].[Key,Value] --output text')
+    printf '%b\n' "${FAKE_TAGS:-ManagedBy\\tAWSCLI\\nProject\\tRivet\\nWorkspace\\tprimary}"
+    ;;
+  's3api get-bucket-lifecycle-configuration --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query length(Rules[?ID==`LimitNoncurrentStateAndLockVersions` && Status==`Enabled` && Filter.Prefix==`rivet/` && NoncurrentVersionExpiration.NoncurrentDays==`90` && NoncurrentVersionExpiration.NewerNoncurrentVersions==`10` && Expiration.ExpiredObjectDeleteMarker==`true`]) --output text')
+    printf '%s\n' "${FAKE_LIFECYCLE_MATCHES:-1}"
+    ;;
+  's3api get-bucket-policy --bucket rivet-tofu-state-123456789012-ap-south-1-an --expected-bucket-owner 123456789012 --region ap-south-1 --query Policy --output text')
+    if [[ -n "${FAKE_INSTALLED_POLICY:-}" ]]; then
+      printf '%s\n' "$FAKE_INSTALLED_POLICY"
+    else
+      : "${FAKE_POLICY_FILE:?FAKE_POLICY_FILE is required}"
+      [[ -s "$FAKE_POLICY_FILE" ]] || exit 72
+      command cat "$FAKE_POLICY_FILE"
+    fi
+    ;;
+  *)
+    printf 'unexpected AWS CLI call: %s\n' "$*" >&2
+    exit 64
+    ;;
+esac

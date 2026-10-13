@@ -1,0 +1,11 @@
+---
+- name: Validate an operator SSH public key
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Run the public-key input validation
+      ansible.builtin.include_role:
+        name: system_baseline
+        tasks_from: validate_ssh_key.yml

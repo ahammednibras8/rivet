@@ -1,0 +1,384 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly repository_root
+readonly subject="${repository_root}/infra/bootstrap/state-backend.sh"
+readonly fake_bin="${repository_root}/tests/fixtures/bin"
+# shellcheck source=infra/bootstrap/lib/state-bucket-policy.sh
+source "${repository_root}/infra/bootstrap/lib/state-bucket-policy.sh"
+jq_directory="$(dirname "$(command -v jq)")"
+readonly jq_directory
+test_directory="$(mktemp -d "${TMPDIR:-/tmp}/rivet-state-backend-test.XXXXXX")"
+readonly test_directory
+trap 'rm -rf "$test_directory"' EXIT
+
+case_output=""
+case_status=0
+case_log=""
+case_policy_file=""
+case_number=0
+fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/rivet-operator/test-session'
+fake_aws_status=0
+fake_iam_status=0
+fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
+fake_bucket_exists=false
+fake_create_status=0
+fake_bucket_region=ap-south-1
+fake_fail_operation=""
+fake_ownership=BucketOwnerEnforced
+fake_public_access='True\tTrue\tTrue\tTrue'
+fake_encryption=AES256
+fake_versioning=Enabled
+fake_tags='ManagedBy\tAWSCLI\nProject\tRivet\nWorkspace\tprimary'
+fake_lifecycle_matches=1
+fake_installed_policy=""
+
+run_case() {
+  local action="$1"
+  local confirmation="${2:-}"
+  local log_file
+  local policy_file
+
+  case_number=$((case_number + 1))
+  log_file="${test_directory}/aws-${case_number}.log"
+  policy_file="${test_directory}/policy-${case_number}.json"
+  : >"$log_file"
+
+  if [[ "$action" == "verify" ]]; then
+    render_state_bucket_policy \
+      'rivet-tofu-state-123456789012-ap-south-1-an' \
+      'rivet/infrastructure.tfstate' \
+      'arn:aws:iam::123456789012:role/rivet-operator' \
+      >"$policy_file"
+  fi
+
+  set +e
+  case_output="$(
+    PATH="${fake_bin}:${jq_directory}:/usr/bin:/bin" \
+      FAKE_AWS_IDENTITY="$fake_identity" \
+      FAKE_AWS_STATUS="$fake_aws_status" \
+      FAKE_IAM_STATUS="$fake_iam_status" \
+      FAKE_ROLE_ARN="$fake_role_arn" \
+      FAKE_AWS_LOG="$log_file" \
+      FAKE_POLICY_FILE="$policy_file" \
+      FAKE_BUCKET_EXISTS="$fake_bucket_exists" \
+      FAKE_CREATE_STATUS="$fake_create_status" \
+      FAKE_BUCKET_REGION="$fake_bucket_region" \
+      FAKE_FAIL_OPERATION="$fake_fail_operation" \
+      FAKE_OWNERSHIP="$fake_ownership" \
+      FAKE_PUBLIC_ACCESS="$fake_public_access" \
+      FAKE_ENCRYPTION="$fake_encryption" \
+      FAKE_VERSIONING="$fake_versioning" \
+      FAKE_TAGS="$fake_tags" \
+      FAKE_LIFECYCLE_MATCHES="$fake_lifecycle_matches" \
+      FAKE_INSTALLED_POLICY="$fake_installed_policy" \
+      "$subject" "$action" <<<"$confirmation" 2>&1
+  )"
+  case_status=$?
+  set -e
+
+  case_log="$(<"$log_file")"
+  case_policy_file="$policy_file"
+}
+
+fail() {
+  printf 'FAIL: %s\n' "$1" >&2
+  exit 1
+}
+
+assert_status() {
+  local expected="$1"
+
+  [[ "$case_status" == "$expected" ]] ||
+    fail "expected status ${expected}, got ${case_status}: ${case_output}"
+}
+
+assert_contains() {
+  local expected="$1"
+
+  [[ "$case_output" == *"$expected"* ]] ||
+    fail "expected output to contain '${expected}', got: ${case_output}"
+}
+
+assert_not_contains() {
+  local unexpected="$1"
+
+  [[ "$case_output" != *"$unexpected"* ]] ||
+    fail "expected output not to contain '${unexpected}', got: ${case_output}"
+}
+
+assert_log_contains() {
+  local expected="$1"
+
+  [[ "$case_log" == *"$expected"* ]] ||
+    fail "expected AWS log to contain '${expected}', got: ${case_log}"
+}
+
+assert_log_not_contains() {
+  local unexpected="$1"
+
+  [[ "$case_log" != *"$unexpected"* ]] ||
+    fail "expected AWS log not to contain '${unexpected}', got: ${case_log}"
+}
+
+assert_protection_calls() {
+  assert_log_contains 's3api put-bucket-ownership-controls'
+  assert_log_contains 'ObjectOwnership=BucketOwnerEnforced'
+  assert_log_contains 's3api put-public-access-block'
+  assert_log_contains 'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true'
+  assert_log_contains 's3api put-bucket-encryption'
+  assert_log_contains 'SSEAlgorithm=AES256'
+  assert_log_contains 's3api put-bucket-versioning'
+  assert_log_contains 'Status=Enabled'
+  assert_log_contains 's3api put-bucket-tagging'
+  assert_log_contains 'Key=ManagedBy,Value=AWSCLI'
+  assert_log_contains 'Key=Project,Value=Rivet'
+  assert_log_contains 'Key=Workspace,Value=primary'
+  assert_log_contains 's3api put-bucket-lifecycle-configuration'
+  assert_log_contains 'NoncurrentDays=90,NewerNoncurrentVersions=10'
+  assert_log_contains 'ExpiredObjectDeleteMarker=true'
+  assert_log_contains 's3api put-bucket-policy'
+}
+
+assert_core_verification_calls() {
+  assert_log_contains 's3api get-bucket-ownership-controls'
+  assert_log_contains 's3api get-public-access-block'
+  assert_log_contains 's3api get-bucket-encryption'
+  assert_log_contains 's3api get-bucket-versioning'
+}
+
+assert_metadata_verification_calls() {
+  assert_log_contains 's3api get-bucket-tagging'
+  assert_log_contains 's3api get-bucket-lifecycle-configuration'
+  assert_log_contains 's3api get-bucket-policy'
+}
+
+assert_bucket_policy() {
+  [[ -s "$case_policy_file" ]] || fail 'expected a rendered bucket policy'
+
+  jq -e '
+    .Version == "2012-10-17" and
+    ([.Statement[] | select(
+      .Sid == "DenyInsecureTransport" and
+      .Effect == "Deny" and
+      .Principal == "*" and
+      .Action == "s3:*" and
+      .Condition.Bool."aws:SecureTransport" == "false" and
+      (.Resource | sort) == ([
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an",
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/*"
+      ] | sort)
+    )] | length) == 1 and
+    ([.Statement[] | select(
+      .Sid == "DenyUnexpectedPrincipals" and
+      .Effect == "Deny" and
+      .Principal == "*" and
+      .Action == "s3:*" and
+      (.Resource | sort) == ([
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an",
+        "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/*"
+      ] | sort) and
+      .Condition.ArnNotEquals."aws:PrincipalArn" ==
+        "arn:aws:iam::123456789012:role/rivet-operator"
+    )] | length) == 1 and
+    ([.Statement[] | select(
+      .Sid == "DenyStateDeletion" and
+      .Effect == "Deny" and
+      .Principal == "*" and
+      (.Action | sort) == (["s3:DeleteObject", "s3:DeleteObjectVersion"] | sort) and
+      .Resource == "arn:aws:s3:::rivet-tofu-state-123456789012-ap-south-1-an/rivet/infrastructure.tfstate"
+    )] | length) == 1 and
+    ([.. | strings | select(contains("tflock"))] | length) == 0
+  ' "$case_policy_file" >/dev/null || fail 'rendered bucket policy is unsafe'
+}
+
+run_case plan
+assert_status 0
+assert_contains 'AWS temporary-role preflight passed.'
+assert_contains 'Operator role: arn:aws:iam::123456789012:role/rivet-operator'
+assert_contains 'Target region: ap-south-1'
+assert_contains 'Target state bucket: rivet-tofu-state-123456789012-ap-south-1-an'
+assert_contains 'No AWS resources were changed.'
+assert_log_not_contains 's3api'
+
+run_case verify
+assert_status 0
+assert_contains 'State bucket core protection settings verified.'
+assert_contains 'State bucket tags, retention, and policy verified.'
+assert_contains 'State backend verification passed.'
+assert_not_contains 'readonly variable'
+assert_core_verification_calls
+assert_metadata_verification_calls
+assert_log_not_contains 's3api head-bucket'
+assert_log_not_contains 's3api create-bucket'
+assert_log_not_contains 's3api put-'
+
+fake_encryption=aws:kms
+run_case verify
+assert_status 1
+assert_contains 'error: bucket default encryption is not SSE-S3'
+assert_log_not_contains 's3api put-'
+fake_encryption=AES256
+
+run_case invalid
+assert_status 64
+assert_contains 'usage:'
+[[ -z "$case_log" ]] || fail "invalid action called AWS: ${case_log}"
+
+run_case apply wrong-bucket
+assert_status 1
+assert_contains 'error: confirmation did not match the target bucket'
+assert_log_not_contains 's3api'
+
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 0
+assert_not_contains 'readonly variable'
+assert_contains 'State bucket created.'
+assert_contains 'State bucket ownership and region verified.'
+assert_log_contains 's3api head-bucket'
+assert_log_contains 's3api create-bucket'
+assert_log_contains 's3api get-bucket-location'
+assert_contains 'State bucket protection settings converged.'
+assert_contains 'State bucket core protection settings verified.'
+assert_contains 'State bucket tags, retention, and policy verified.'
+assert_protection_calls
+assert_core_verification_calls
+assert_metadata_verification_calls
+assert_bucket_policy
+
+fake_bucket_exists=true
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 0
+assert_contains 'State bucket already exists.'
+assert_log_not_contains 's3api create-bucket'
+assert_log_contains 's3api get-bucket-location'
+assert_protection_calls
+assert_core_verification_calls
+assert_metadata_verification_calls
+assert_contains 'State bucket tags, retention, and policy verified.'
+assert_bucket_policy
+
+fake_ownership=ObjectWriter
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket ownership control was not retained'
+
+fake_ownership=BucketOwnerEnforced
+fake_public_access='True\tTrue\tFalse\tTrue'
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket public-access block is incomplete'
+
+fake_public_access='True\tTrue\tTrue\tTrue'
+fake_encryption=aws:kms
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket default encryption is not SSE-S3'
+
+fake_encryption=AES256
+fake_versioning=Suspended
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: bucket versioning is not enabled'
+
+fake_versioning=Enabled
+
+fake_tags='ManagedBy\tAWSCLI\nProject\tRivet'
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: state bucket tags do not match the required set'
+
+fake_tags='ManagedBy\tAWSCLI\nProject\tRivet\nWorkspace\tprimary'
+fake_lifecycle_matches=0
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: state bucket lifecycle retention is incorrect'
+
+fake_lifecycle_matches=1
+fake_installed_policy='{"Version":"2012-10-17","Statement":[]}'
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: installed state bucket policy differs from the required policy'
+
+fake_installed_policy=""
+
+fake_fail_operation=put-public-access-block
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 71
+assert_log_contains 's3api put-bucket-ownership-controls'
+assert_log_contains 's3api put-public-access-block'
+assert_log_not_contains 's3api put-bucket-encryption'
+assert_log_not_contains 's3api put-bucket-versioning'
+assert_log_not_contains 's3api put-bucket-tagging'
+
+fake_fail_operation=""
+fake_bucket_exists=false
+fake_create_status=73
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 73
+assert_contains 'simulated bucket collision'
+assert_log_not_contains 's3api get-bucket-location'
+
+fake_create_status=0
+fake_bucket_exists=true
+fake_bucket_region=us-east-1
+run_case apply rivet-tofu-state-123456789012-ap-south-1-an
+assert_status 1
+assert_contains 'error: state bucket exists in unexpected region us-east-1'
+
+fake_bucket_region=ap-south-1
+fake_bucket_exists=false
+fake_identity='123456789012\tarn:aws:iam::123456789012:user/operator'
+run_case plan
+assert_status 1
+assert_contains 'error: use temporary credentials from an assumed IAM role'
+
+fake_identity='123456789012\tarn:aws:iam::123456789012:root'
+run_case plan
+assert_status 1
+assert_contains 'error: use temporary credentials from an assumed IAM role'
+
+fake_identity='not-an-account\tarn:aws:sts::123456789012:assumed-role/rivet-operator/test-session'
+run_case plan
+assert_status 1
+assert_contains 'error: AWS returned an invalid account ID'
+
+fake_identity='123456789012\tarn:aws:sts::999999999999:assumed-role/rivet-operator/test-session'
+run_case plan
+assert_status 1
+assert_contains 'error: use temporary credentials from an assumed IAM role'
+assert_log_not_contains 'iam get-role'
+
+fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/another-project/test-session'
+run_case plan
+assert_status 1
+assert_contains 'error: use temporary credentials from rivet-operator'
+assert_log_not_contains 'iam get-role'
+
+fake_identity='123456789012\tarn:aws:sts::123456789012:assumed-role/rivet-operator/test-session'
+fake_role_arn='arn:aws:iam::999999999999:role/rivet-operator'
+run_case plan
+assert_status 1
+assert_contains 'error: AWS returned an invalid operator role ARN'
+
+fake_role_arn='arn:aws:iam::123456789012:role/another-project'
+run_case plan
+assert_status 1
+assert_contains 'error: AWS returned an invalid operator role ARN'
+
+fake_role_arn='arn:aws:iam::123456789012:role/rivet-operator'
+fake_iam_status=43
+run_case plan
+assert_status 43
+assert_contains 'simulated IAM role lookup failure'
+
+fake_iam_status=0
+fake_identity=unused
+fake_aws_status=42
+run_case plan
+assert_status 42
+assert_contains 'simulated AWS authentication failure'
+
+printf 'state-backend preflight tests passed\n'

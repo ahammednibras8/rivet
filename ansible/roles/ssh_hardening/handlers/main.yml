@@ -1,0 +1,14 @@
+---
+- name: Validate complete SSH configuration
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+  listen: Reload SSH
+
+- name: Reload active SSH service
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/systemctl
+      - reload-or-try-restart
+      - ssh.service
+  changed_when: false
+  listen: Reload SSH

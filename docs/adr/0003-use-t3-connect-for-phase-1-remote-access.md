@@ -43,8 +43,8 @@ The Lightsail host will:
 5. make only the outbound connections required by T3 Connect.
 
 The Lightsail firewall will not expose the T3 server port, HTTP port 80, or
-HTTPS port 443 to the public internet for this route. Administrative SSH policy
-will be decided and enforced separately; it is not a T3 client route.
+HTTPS port 443 to the public internet for this route. ADR-0005 separately
+defines Tailscale-backed administrative SSH; it is not a T3 client route.
 
 Phase 1 will not configure Tailscale Serve, Tailscale Funnel, a public reverse
 proxy, a custom T3 domain, or a direct-HTTPS fallback. A fallback that silently
@@ -182,8 +182,8 @@ a generic "offline" result.
 - T3 Connect service behavior and limits are outside Rivet's control.
 - A relay, identity, or tunnel incident can block mobile access even when the
   Lightsail host and T3 service are healthy.
-- This decision does not provide a private network for SSH or other host
-  administration.
+- This decision does not itself provide a private network for SSH or other
+  host administration; ADR-0005 supplies that separate administrative plane.
 
 ## Alternatives considered
 
