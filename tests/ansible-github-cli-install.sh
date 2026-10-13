@@ -15,6 +15,14 @@ expected_tasks='---
     group: root
     mode: "0755"
 
+- name: Maintain private GitHub CLI configuration directory
+  ansible.builtin.file:
+    path: /home/rivet/.config/gh
+    state: directory
+    owner: rivet
+    group: rivet
+    mode: "0700"
+
 - name: Download reviewed GitHub CLI package
   ansible.builtin.get_url:
     url: "{{ github_cli_download_url }}"
@@ -48,7 +56,7 @@ expected_tasks='---
   when: not ansible_check_mode'
 
 if [[ ! -f "$tasks_file" ]] || [[ "$(<"$tasks_file")" != "$expected_tasks" ]]; then
-  echo "GitHub CLI must be checksum-protected, version-verified, and check-mode safe" >&2
+  echo "GitHub CLI must keep private configuration and use a verified, check-mode-safe package" >&2
   exit 1
 fi
 
