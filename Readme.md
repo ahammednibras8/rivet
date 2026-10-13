@@ -9,9 +9,9 @@ providers, and development tools on a persistent cloud host. The existing T3
 Code mobile app connects to that host, and the developer continues the same
 threads, worktrees, tests, diffs, and pull requests from anywhere.
 
-> **Project status:** The AWS cloud foundation is provisioned and verified.
-> T3 Code installation and the mobile connection remain future implementation
-> issues.
+> **Project status:** The AWS cloud foundation and secure T3 Connect access are
+> provisioned and verified. Repository and agent-provider setup remain future
+> implementation issues.
 
 ## The problem
 
@@ -288,6 +288,10 @@ rationale, security controls, acceptance gates, or review triggers.
 The [cloud-foundation provisioning runbook](docs/runbooks/provision-cloud-foundation.md)
 is the operator entry point for the reviewed backend, plan, apply, convergence,
 and verification workflow.
+
+The [T3 Connect operations runbook](docs/runbooks/operate-t3-connect.md) covers
+the reviewed headless authorization, mobile connection, device revocation,
+environment deregistration, recovery, and failure-isolation workflow.
 
 Implementation issues must still resolve these choices with security and test
 evidence:

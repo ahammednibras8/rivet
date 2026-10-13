@@ -1,0 +1,8 @@
+---
+- name: Install T3 Code runtime packages
+  ansible.builtin.apt:
+    name:
+      - libatomic1
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

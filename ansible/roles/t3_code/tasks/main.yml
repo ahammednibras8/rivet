@@ -1,0 +1,12 @@
+---
+- name: Prepare the T3 Code filesystem
+  ansible.builtin.import_tasks: layout.yml
+
+- name: Install T3 Code runtime dependencies
+  ansible.builtin.import_tasks: packages.yml
+
+- name: Download the reviewed T3 Code release
+  ansible.builtin.import_tasks: install.yml
+
+- name: Prepare the supervised T3 Code service
+  ansible.builtin.import_tasks: service.yml
