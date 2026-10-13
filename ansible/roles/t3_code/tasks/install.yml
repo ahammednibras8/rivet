@@ -48,3 +48,12 @@
     group: rivet
     mode: "0640"
   when: not ansible_check_mode
+
+- name: Link verified T3 Code release
+  ansible.builtin.file:
+    src: "/home/rivet/.t3/runtime/versions/{{ t3_code_version }}/t3"
+    dest: /home/rivet/.local/bin/t3
+    state: link
+    owner: rivet
+    group: rivet
+    force: true
