@@ -1,0 +1,6 @@
+---
+- name: Verify the T3 Code role
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: t3_code

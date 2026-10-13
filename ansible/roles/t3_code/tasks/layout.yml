@@ -1,0 +1,29 @@
+---
+- name: Maintain T3 Code service directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: rivet
+    group: rivet
+    mode: "{{ item.mode }}"
+  loop:
+    - path: /home/rivet/.local
+      mode: "0750"
+    - path: /home/rivet/.local/bin
+      mode: "0750"
+    - path: /home/rivet/.t3
+      mode: "0700"
+    - path: /home/rivet/.t3/runtime
+      mode: "0750"
+    - path: /home/rivet/.t3/runtime/versions
+      mode: "0750"
+    - path: "/home/rivet/.t3/runtime/versions/{{ t3_code_version }}"
+      mode: "0750"
+
+- name: Maintain T3 Code archive cache
+  ansible.builtin.file:
+    path: /var/cache/rivet/t3-code
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
