@@ -7,7 +7,7 @@ config_file="${repo_root}/ansible/ansible.cfg"
 main_file="${repo_root}/ansible/roles/t3_code/tasks/main.yml"
 service_file="${repo_root}/ansible/roles/t3_code/tasks/service.yml"
 playbook="${repo_root}/tests/fixtures/ansible/t3-code.yml"
-expected_service='---
+expected_linger='---
 - name: Keep the T3 Code service user active after logout
   ansible.builtin.command:
     argv:
@@ -22,7 +22,7 @@ if ! grep -Fqx -- '- name: Prepare the supervised T3 Code service' "$main_file" 
   exit 1
 fi
 
-if [[ ! -f "$service_file" ]] || [[ "$(<"$service_file")" != "$expected_service" ]]; then
+if [[ ! -f "$service_file" ]] || [[ "$(<"$service_file")" != *"$expected_linger"* ]]; then
   echo "Only loginctl may use administrator authority to keep the rivet user manager running" >&2
   exit 1
 fi

@@ -6,3 +6,34 @@
       - enable-linger
       - rivet
     creates: /var/lib/systemd/linger/rivet
+
+- name: Read the T3 Code service account
+  ansible.builtin.getent:
+    database: passwd
+    key: rivet
+
+- name: Wait for the T3 Code user manager
+  ansible.builtin.wait_for:
+    path: "/run/user/{{ getent_passwd.rivet[1] }}/bus"
+    state: present
+    timeout: 30
+  when: not ansible_check_mode
+
+- name: Install the T3 Code user service
+  ansible.builtin.command:
+    argv:
+      - /home/rivet/.local/bin/t3
+      - service
+      - install
+  become: true
+  become_user: rivet
+  environment:
+    HOME: /home/rivet
+    PATH: /home/rivet/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd.rivet[1] }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ getent_passwd.rivet[1] }}/bus"
+  register: t3_code_service_install
+  changed_when: >-
+    "Installed T3 Code service" in t3_code_service_install.stdout or
+    "Updated T3 Code service" in t3_code_service_install.stdout
+  when: not ansible_check_mode
