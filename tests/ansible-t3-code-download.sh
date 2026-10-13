@@ -13,7 +13,8 @@ expected_download='---
     checksum: "sha256:{{ t3_code_release_sha256 }}"
     owner: root
     group: root
-    mode: "0644"'
+    mode: "0644"
+  when: not ansible_check_mode'
 
 if ! grep -Fqx -- '- name: Download the reviewed T3 Code release' "$main_file" ||
   ! grep -Fqx -- '  ansible.builtin.import_tasks: install.yml' "$main_file"; then
@@ -26,4 +27,4 @@ if [[ ! -f "$install_file" ]] || [[ "$(<"$install_file")" != *"$expected_downloa
   exit 1
 fi
 
-echo "The reviewed T3 Code archive download is checksum-protected."
+echo "The reviewed T3 Code archive download is checksum-protected and check-mode safe."
