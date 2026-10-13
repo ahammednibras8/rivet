@@ -1,0 +1,6 @@
+---
+- name: Verify the GitHub CLI role
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: github_cli

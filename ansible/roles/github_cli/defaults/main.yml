@@ -1,0 +1,6 @@
+---
+github_cli_version: "2.102.0"
+github_cli_package: "gh_{{ github_cli_version }}_linux_amd64.deb"
+github_cli_download_url: >-
+  https://github.com/cli/cli/releases/download/v{{ github_cli_version }}/{{ github_cli_package }}
+github_cli_sha256: "7e54a307f90afdc59796c325ec0c49fb09e6c18537727207a8ac7513584ea5b0"

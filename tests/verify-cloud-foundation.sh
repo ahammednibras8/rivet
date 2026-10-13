@@ -25,6 +25,8 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/operator-role-policy.sh"
 "${repo_root}/tests/operator-role-bootstrap.sh"
 "${repo_root}/tests/ansible-version-pin.sh"
+"${repo_root}/tests/ansible-github-cli-version-pin.sh"
+"${repo_root}/tests/ansible-github-cli-install.sh"
 "${repo_root}/tests/ansible-t3-code-version-pin.sh"
 "${repo_root}/tests/ansible-t3-code-layout.sh"
 "${repo_root}/tests/ansible-t3-code-packages.sh"
@@ -48,6 +50,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-tailscale-role.sh"
 "${repo_root}/tests/ansible-firewall-policy.sh"
 "${repo_root}/tests/ansible-site.sh"
+"${repo_root}/tests/github-codex-onboarding-docs.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check
