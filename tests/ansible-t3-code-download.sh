@@ -5,7 +5,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 main_file="${repo_root}/ansible/roles/t3_code/tasks/main.yml"
 install_file="${repo_root}/ansible/roles/t3_code/tasks/install.yml"
-expected_install='---
+expected_download='---
 - name: Download reviewed T3 Code release
   ansible.builtin.get_url:
     url: "{{ t3_code_release_url }}"
@@ -21,7 +21,7 @@ if ! grep -Fqx -- '- name: Download the reviewed T3 Code release' "$main_file" |
   exit 1
 fi
 
-if [[ ! -f "$install_file" ]] || [[ "$(<"$install_file")" != "$expected_install" ]]; then
+if [[ ! -f "$install_file" ]] || [[ "$(<"$install_file")" != *"$expected_download"* ]]; then
   echo "T3 Code must be downloaded from the pinned URL with its pinned SHA-256 checksum" >&2
   exit 1
 fi

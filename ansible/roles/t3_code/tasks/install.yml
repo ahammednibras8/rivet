@@ -7,3 +7,44 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Extract reviewed T3 Code release
+  ansible.builtin.unarchive:
+    src: "/var/cache/rivet/t3-code/{{ t3_code_release_archive }}"
+    dest: "/home/rivet/.t3/runtime/versions/{{ t3_code_version }}"
+    remote_src: true
+    owner: rivet
+    group: rivet
+    extra_opts:
+      - --strip-components=1
+    creates: "/home/rivet/.t3/runtime/versions/{{ t3_code_version }}/.install-complete"
+  when: not ansible_check_mode
+
+- name: Read installed T3 Code version
+  ansible.builtin.command:
+    argv:
+      - "/home/rivet/.t3/runtime/versions/{{ t3_code_version }}/t3"
+      - --version
+  become: true
+  become_user: rivet
+  environment:
+    HOME: /home/rivet
+  register: t3_code_installed_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify installed T3 Code version
+  ansible.builtin.assert:
+    that:
+      - t3_code_version in t3_code_installed_version.stdout
+    fail_msg: "Installed T3 Code does not match reviewed version {{ t3_code_version }}"
+  when: not ansible_check_mode
+
+- name: Mark T3 Code release installed
+  ansible.builtin.copy:
+    content: "{{ t3_code_version }}\n"
+    dest: "/home/rivet/.t3/runtime/versions/{{ t3_code_version }}/.install-complete"
+    owner: rivet
+    group: rivet
+    mode: "0640"
+  when: not ansible_check_mode
