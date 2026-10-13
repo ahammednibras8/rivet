@@ -18,20 +18,20 @@ if [[ ! -f "$evidence" ]]; then
 fi
 
 required_runbook_text=(
-  'Approved repository | `ahammednibras8/rivet` only'
+  "Approved repository | \`ahammednibras8/rivet\` only"
   'GitHub permission | Repository contents, read-only'
-  'GitHub CLI `2.102.0`'
-  '**Only select repositories** with only `rivet` selected'
+  "GitHub CLI \`2.102.0\`"
+  "**Only select repositories** with only \`rivet\` selected"
   '**Contents: Read-only**'
   '/home/rivet/workspaces/rivet'
-  'HTTP `403` with `Resource not accessible by personal access token`'
-  'T3-managed Codex connected to `ChatGPT Personal`'
-  'Managed Codex version | `0.156.1`'
+  "HTTP \`403\` with \`Resource not accessible by personal access token\`"
+  "T3-managed Codex connected to \`ChatGPT Personal\`"
+  "Managed Codex version | \`0.156.1\`"
   '**Current checkout**, not **New worktree**'
   '**Supervised** permissions'
   'Human review remains mandatory before every generated pull request is'
   'Never list, read, hash, copy, or publish secret contents.'
-  'including an ignored `.env` file'
+  "including an ignored \`.env\` file"
 )
 
 for expected in "${required_runbook_text[@]}"; do
@@ -43,7 +43,7 @@ done
 
 required_evidence_text=(
   'ok=50 changed=0 unreachable=0 failed=0 skipped=2'
-  'HTTP `403` with `Resource not accessible by personal access token`'
+  "HTTP \`403\` with \`Resource not accessible by personal access token\`"
   'permissionMode=approval-required'
   'lastTurnState=completed'
   'No token was committed or retained in the local repository.'

@@ -7,6 +7,7 @@
       - curl
       - git
       - jq
+      - sqlite3
       - ufw
       - unattended-upgrades
     state: present
