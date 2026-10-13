@@ -1,0 +1,8 @@
+---
+- name: Keep the T3 Code service user active after logout
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - enable-linger
+      - rivet
+    creates: /var/lib/systemd/linger/rivet
