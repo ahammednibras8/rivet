@@ -11,8 +11,10 @@ threads, worktrees, tests, diffs, and pull requests from anywhere.
 
 > **Project status:** The AWS cloud foundation, secure T3 Connect access, and
 > the first repository and coding-agent provider are provisioned and verified.
-> Mobile code-change, pull-request, persistence, recovery, and operations work
-> remains in later implementation issues.
+> A supervised T3 action has also completed from Android over mobile data while
+> the laptop was fully powered off. Mobile code-change, pull-request,
+> persistence, recovery, and operations work remains in later implementation
+> issues.
 
 ## The problem
 
@@ -298,6 +300,11 @@ The [GitHub and Codex onboarding runbook](docs/runbooks/onboard-github-and-codex
 covers the approved repository boundary, read-only GitHub credential,
 cloud-owned checkout, managed Codex provider, supervised mobile thread, and
 credential rotation workflow.
+
+The [laptop-independent operation runbook](docs/runbooks/verify-laptop-independent-operation.md)
+records and compares protected cloud identities around a real laptop-off,
+mobile-data verification without publishing host, environment, thread, or
+process identifiers.
 
 Implementation issues must still resolve these choices with security and test
 evidence:
