@@ -37,3 +37,47 @@
     "Installed T3 Code service" in t3_code_service_install.stdout or
     "Updated T3 Code service" in t3_code_service_install.stdout
   when: not ansible_check_mode
+
+- name: Read T3 Code service enabled state
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - --user
+      - is-enabled
+      - t3code.service
+  become: true
+  become_user: rivet
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd.rivet[1] }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ getent_passwd.rivet[1] }}/bus"
+  register: t3_code_service_enabled
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Read T3 Code service active state
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - --user
+      - is-active
+      - t3code.service
+  become: true
+  become_user: rivet
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd.rivet[1] }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ getent_passwd.rivet[1] }}/bus"
+  register: t3_code_service_active
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Verify T3 Code service supervision
+  ansible.builtin.assert:
+    that:
+      - t3_code_service_enabled.rc == 0
+      - t3_code_service_enabled.stdout == "enabled"
+      - t3_code_service_active.rc == 0
+      - t3_code_service_active.stdout == "active"
+    fail_msg: T3 Code must be enabled and active under the rivet systemd user manager
+  when: not ansible_check_mode
