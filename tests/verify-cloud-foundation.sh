@@ -62,6 +62,8 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/reboot-recovery-docs.sh"
 "${repo_root}/tests/evidence-backed-pr-policy.sh"
 "${repo_root}/tests/evidence-backed-pr-docs.sh"
+"${repo_root}/tests/human-merge-boundary-policy.sh"
+"${repo_root}/tests/human-merge-boundary-docs.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check

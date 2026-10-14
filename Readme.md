@@ -327,6 +327,11 @@ defines the protected default-branch, repository-scoped cloud credential,
 branch publication, exact-diff verification, secret scanning, T3 linking, and
 mandatory human-review workflow for a real pull request.
 
+The [human merge-boundary runbook](docs/runbooks/verify-human-merge-boundary.md)
+verifies that Rivet stops at an open pull request, cannot update the protected
+default branch directly, and cannot merge or deploy after a disconnect or T3
+service restart.
+
 Implementation issues must still resolve these choices with security and test
 evidence:
 
