@@ -52,7 +52,7 @@ codex_active="${HOME}/.t3/tools/codex/active.json"
 secret_dir="${HOME}/.t3/userdata/secrets"
 github_config="${HOME}/.config/gh/hosts.yml"
 
-for command in date git jq journalctl sha256sum sqlite3 systemctl; do
+for command in date gh git jq journalctl sha256sum sqlite3 systemctl; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Required cloud command is unavailable: ${command}" >&2
     exit 1
@@ -219,6 +219,20 @@ secret_store_digest="$({
     done
 } | hash_stream)"
 
+secret_file_count=0
+secret_permissions_valid=true
+while IFS= read -r -d '' secret_file; do
+  secret_file_count=$((secret_file_count + 1))
+  if [[ "$(stat -c '%a:%U:%G' "$secret_file")" != "600:rivet:rivet" ]]; then
+    secret_permissions_valid=false
+  fi
+done < <(find "$secret_dir" -type f -print0)
+
+github_authenticated=false
+if gh auth status --hostname github.com >/dev/null 2>&1; then
+  github_authenticated=true
+fi
+
 settings_tables="$(
   sqlite3 "$database" \
     "SELECT name FROM sqlite_schema WHERE type = 'table' AND lower(name) LIKE '%setting%' ORDER BY name;"
@@ -282,6 +296,9 @@ jq -n \
   --arg secret_store_digest "$secret_store_digest" \
   --arg github_config_digest "$(sha256sum "$github_config" | awk '{print $1}')" \
   --arg settings_digest "$settings_digest" \
+  --arg secret_file_count "$secret_file_count" \
+  --argjson secret_permissions_valid "$secret_permissions_valid" \
+  --argjson github_authenticated "$github_authenticated" \
   --arg reboot_requested_epoch "$reboot_requested_epoch" \
   --arg service_active_epoch "$service_active_epoch" \
   --arg context_response_epoch "$context_response_epoch" \
@@ -320,6 +337,11 @@ jq -n \
       secretStoreDigest: $secret_store_digest,
       githubConfigDigest: $github_config_digest,
       settingsDigest: $settings_digest
+    },
+    credentialHealth: {
+      secretFileCount: ($secret_file_count | tonumber),
+      secretPermissionsValid: $secret_permissions_valid,
+      githubAuthenticated: $github_authenticated
     },
     inFlightProcessCompleted: $inflight_completed,
     recovery: {
@@ -370,8 +392,10 @@ comparison="$(
           $after.thread.threadId == $before.thread.threadId and
           $after.thread.projectId == $before.thread.projectId and
           $after.thread.workspaceRoot == $before.thread.workspaceRoot and
-          $after.thread.branch == $before.thread.branch and
           $after.thread.worktreePath == $before.thread.worktreePath
+        ),
+        threadBranchReconciled: (
+          $after.thread.branch == $after.repository.branch
         ),
         historyPreserved: ($after.historyPrefixDigest == $before.historyDigest),
         contextResponseRecorded: (
@@ -396,9 +420,16 @@ comparison="$(
         providerConfigurationPreserved: (
           $after.persistentConfiguration.codexActiveDigest == $before.persistentConfiguration.codexActiveDigest
         ),
-        credentialsPreserved: (
-          $after.persistentConfiguration.secretStoreDigest == $before.persistentConfiguration.secretStoreDigest and
-          $after.persistentConfiguration.githubConfigDigest == $before.persistentConfiguration.githubConfigDigest
+        credentialsAvailable: (
+          $after.persistentConfiguration.githubConfigDigest == $before.persistentConfiguration.githubConfigDigest and
+          $after.credentialHealth.secretFileCount > 0 and
+          $after.credentialHealth.secretPermissionsValid == true and
+          $after.credentialHealth.githubAuthenticated == true and
+          $after.environment.authenticated == true and
+          $after.thread.contextResponsePresent == 1
+        ),
+        credentialRotationObserved: (
+          $after.persistentConfiguration.secretStoreDigest != $before.persistentConfiguration.secretStoreDigest
         ),
         inFlightProcessInterrupted: ($after.inFlightProcessCompleted == false),
         recoverySeconds: $after.recovery
@@ -416,13 +447,14 @@ if ! jq -e '
   .sameEnvironment == true and
   .environmentReady == true and
   .sameThread == true and
+  .threadBranchReconciled == true and
   .historyPreserved == true and
   .contextResponseRecorded == true and
   .providerRuntimeRecovered == true and
   .repositoryPreserved == true and
   .settingsPreserved == true and
   .providerConfigurationPreserved == true and
-  .credentialsPreserved == true and
+  .credentialsAvailable == true and
   .inFlightProcessInterrupted == true and
   .recoverySeconds.hostSeconds >= 0 and
   .recoverySeconds.serviceSeconds >= 0 and
