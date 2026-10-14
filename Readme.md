@@ -322,6 +322,11 @@ worktrees, thread history, settings, and provider access without repair or
 re-pairing, while explicitly recording that an ordinary in-flight process is
 interrupted.
 
+The [evidence-backed pull-request runbook](docs/runbooks/deliver-evidence-backed-pr.md)
+defines the protected default-branch, repository-scoped cloud credential,
+branch publication, exact-diff verification, secret scanning, T3 linking, and
+mandatory human-review workflow for a real pull request.
+
 Implementation issues must still resolve these choices with security and test
 evidence:
 

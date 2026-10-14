@@ -60,6 +60,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/isolated-work-survival-docs.sh"
 "${repo_root}/tests/reboot-recovery-policy.sh"
 "${repo_root}/tests/reboot-recovery-docs.sh"
+"${repo_root}/tests/evidence-backed-pr-policy.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check
