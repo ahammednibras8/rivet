@@ -119,7 +119,8 @@ fi
 
 if ! jq -e '
   .[0].workspaceRoot == "/home/rivet/workspaces/rivet" and
-  .[0].branch == "verification/10-reboot-recovery" and
+  .[0].branch != "" and
+  .[0].branch != "main" and
   .[0].providerName == "codex" and
   .[0].runtimeMode == "approval-required" and
   .[0].messageCount >= 2 and
@@ -184,6 +185,13 @@ fi
 repository_clean=false
 if [[ -z "$(git -C "$repository" status --porcelain)" ]]; then
   repository_clean=true
+fi
+
+repository_branch="$(git -C "$repository" symbolic-ref --quiet --short HEAD || true)"
+if [[ "$repository_branch" != "verification/10-reboot-recovery" ]]; then
+  echo "The cloud checkout is not on the Issue #10 verification branch." >&2
+  printf 'Actual branch: %s\n' "$repository_branch" >&2
+  exit 1
 fi
 
 if [[ "$repository_clean" != true ]]; then
@@ -271,7 +279,7 @@ jq -n \
   --arg history_digest "$history_digest" \
   --argjson thread "$thread" \
   --arg repository_head "$(git -C "$repository" rev-parse HEAD)" \
-  --arg repository_branch "$(git -C "$repository" symbolic-ref --short HEAD)" \
+  --arg repository_branch "$repository_branch" \
   --argjson repository_clean "$repository_clean" \
   --arg branches_digest "$branches_digest" \
   --argjson worktrees "$worktrees" \
