@@ -56,7 +56,7 @@ if ! jq -e '
   .state == "OPEN" and
   .isDraft == false and
   .baseRefName == "main" and
-  .headRefName == "security/12-human-merge-boundary" and
+  .headRefName == "verification/12-human-merge-evidence" and
   .autoMergeRequest == null and
   (.body | contains("Related: #12"))
 ' <<<"$pull_request" >/dev/null; then
