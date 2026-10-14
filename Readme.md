@@ -12,9 +12,10 @@ threads, worktrees, tests, diffs, and pull requests from anywhere.
 > **Project status:** The AWS cloud foundation, secure T3 Connect access, and
 > the first repository and coding-agent provider are provisioned and verified.
 > A supervised T3 action has also completed from Android over mobile data while
-> the laptop was fully powered off. Mobile code-change, pull-request,
-> persistence, recovery, and operations work remains in later implementation
-> issues.
+> the laptop was fully powered off, and a real host reboot restored the same
+> environment, repository, and thread without SSH repair or T3 Connect
+> re-pairing. Mobile pull-request, backup, restore, and operations work remains
+> in later implementation issues.
 
 ## The problem
 
@@ -314,6 +315,12 @@ recover after fresh authorization without relinking the host.
 The [isolated-work survival runbook](docs/runbooks/verify-isolated-work-survival.md)
 verifies that an agent-generated diff plus successful and failed command state
 survive a mobile disconnect without changing `main` or unrelated worktrees.
+
+The [reboot-recovery runbook](docs/runbooks/verify-reboot-recovery.md) proves
+that the actual Lightsail host restores T3, T3 Connect, the repository,
+worktrees, thread history, settings, and provider access without repair or
+re-pairing, while explicitly recording that an ordinary in-flight process is
+interrupted.
 
 Implementation issues must still resolve these choices with security and test
 evidence:
