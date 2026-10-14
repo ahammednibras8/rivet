@@ -38,6 +38,7 @@ set -euo pipefail
 
 marker="$(printf '%s' "$1" | base64 --decode)"
 context_word="$(printf '%s' "$2" | base64 --decode)"
+cd "$HOME"
 state_dir="${HOME}/.local/state/rivet-verification"
 baseline_path="${state_dir}/issue-13-before.json"
 database="${HOME}/.t3/userdata/state.sqlite"
