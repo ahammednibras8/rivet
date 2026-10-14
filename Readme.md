@@ -311,6 +311,10 @@ proves that Android can reopen and continue the exact cloud-hosted thread,
 preserve its prior context, deny access after phone-session revocation, and
 recover after fresh authorization without relinking the host.
 
+The [isolated-work survival runbook](docs/runbooks/verify-isolated-work-survival.md)
+verifies that an agent-generated diff plus successful and failed command state
+survive a mobile disconnect without changing `main` or unrelated worktrees.
+
 Implementation issues must still resolve these choices with security and test
 evidence:
 

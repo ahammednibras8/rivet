@@ -55,6 +55,9 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/laptop-independent-operation-docs.sh"
 "${repo_root}/tests/mobile-thread-continuation-policy.sh"
 "${repo_root}/tests/mobile-thread-continuation-docs.sh"
+"${repo_root}/tests/issue-9-command-state.sh"
+"${repo_root}/tests/isolated-worktree-state-policy.sh"
+"${repo_root}/tests/isolated-work-survival-docs.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check
