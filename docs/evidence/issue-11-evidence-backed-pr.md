@@ -102,8 +102,26 @@ The initial live PR comparison returned:
 
 The verifier also compared GitHub's file and commit lists byte-for-byte with
 the local remote-tracking references and scanned the PR body with Gitleaks.
-The final verification is rerun after this evidence file and its documentation
-policy are added; PR #24 remains the authoritative live result.
+After this evidence and its documentation policy were added, the final
+comparison reported:
+
+```json
+{
+  "number": 24,
+  "state": "OPEN",
+  "base": "main",
+  "head": "feature/11-evidence-backed-pr",
+  "autoMergeConfigured": false,
+  "relationshipRecorded": true,
+  "requiredSectionsRecorded": true,
+  "changedFileCount": 7,
+  "commitCount": 3
+}
+```
+
+The final repository history and worktree scans also reported no leaks. The
+cloud checkout and remote branch resolved to the same final commit, and T3
+Code listed the same open PR #24 against `main`.
 
 ## Human gate
 

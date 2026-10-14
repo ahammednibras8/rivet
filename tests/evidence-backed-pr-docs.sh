@@ -40,6 +40,8 @@ required_evidence_text=(
   '"forcePushesAllowed": false'
   '"state": "OPEN"'
   '"autoMergeConfigured": false'
+  '"changedFileCount": 7'
+  '"commitCount": 3'
   'PR #24 intentionally remains open'
 )
 
