@@ -78,6 +78,13 @@ T3 became active under the non-root `rivet` account 19 seconds after the
 recorded reboot request. The current-boot service journal had no error-level
 entries and systemd reported no restart loop.
 
+The complete Ansible playbook then converged against the rebooted host without
+repair or configuration drift:
+
+```text
+rivet-workspace : ok=51 changed=0 unreachable=0 failed=0 skipped=2 rescued=0 ignored=0
+```
+
 ## Persistent state and authentication
 
 The repository revision, actual Issue #10 branch, local branch-reference

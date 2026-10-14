@@ -43,6 +43,7 @@ required_evidence_text=(
   '"hostSeconds": 11'
   '"serviceSeconds": 19'
   '"mobileThreadSeconds": 529'
+  'ok=51 changed=0 unreachable=0 failed=0'
   'stale cached thread branch label'
 )
 
