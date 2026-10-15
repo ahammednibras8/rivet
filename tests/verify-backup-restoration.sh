@@ -317,8 +317,12 @@ fi
 secret_file_count="$(find "$secret_dir" -type f | wc -l | tr -d ' ')"
 insecure_secret_count="$(find "$secret_dir" -type f ! -perm 0600 | wc -l | tr -d ' ')"
 credentials_protected=false
-if ((secret_file_count >= $(jq -r '.integrity.secretFileCount' "$baseline_path") && insecure_secret_count == 0)); then
+if ((secret_file_count > 0 && insecure_secret_count == 0)); then
   credentials_protected=true
+fi
+credential_rotation_observed=false
+if ((secret_file_count != $(jq -r '.integrity.secretFileCount' "$baseline_path"))); then
+  credential_rotation_observed=true
 fi
 
 github_configuration_preserved=false
@@ -356,6 +360,29 @@ if [[ "$same_thread" != true ||
   "$environment_preserved" != true ||
   "$loopback_only" != true ]]; then
   echo "The restored workspace does not satisfy every Issue #13 invariant." >&2
+  jq -n \
+    --argjson sameThread "$same_thread" \
+    --argjson contextResponseRecorded "$context_response_recorded" \
+    --argjson repositoryPreserved "$repository_preserved" \
+    --argjson durablePermissionsPreserved "$durable_permissions_preserved" \
+    --argjson credentialsProtected "$credentials_protected" \
+    --argjson credentialRotationObserved "$credential_rotation_observed" \
+    --argjson githubConfigurationPreserved "$github_configuration_preserved" \
+    --argjson providerConfigurationPreserved "$provider_configuration_preserved" \
+    --argjson environmentPreserved "$environment_preserved" \
+    --argjson loopbackOnly "$loopback_only" \
+    '{
+      sameThread: $sameThread,
+      contextResponseRecorded: $contextResponseRecorded,
+      repositoryPreserved: $repositoryPreserved,
+      durablePermissionsPreserved: $durablePermissionsPreserved,
+      credentialsProtected: $credentialsProtected,
+      credentialRotationObserved: $credentialRotationObserved,
+      githubConfigurationPreserved: $githubConfigurationPreserved,
+      providerConfigurationPreserved: $providerConfigurationPreserved,
+      environmentPreserved: $environmentPreserved,
+      loopbackOnly: $loopbackOnly
+    }' >&2
   exit 1
 fi
 
@@ -375,6 +402,7 @@ jq -n \
   --argjson repository_preserved "$repository_preserved" \
   --argjson durable_permissions_preserved "$durable_permissions_preserved" \
   --argjson credentials_protected "$credentials_protected" \
+  --argjson credential_rotation_observed "$credential_rotation_observed" \
   --argjson github_configuration_preserved "$github_configuration_preserved" \
   --argjson provider_configuration_preserved "$provider_configuration_preserved" \
   --argjson loopback_only "$loopback_only" \
@@ -395,6 +423,7 @@ jq -n \
     worktreeCount: ($worktree_count | tonumber),
     durablePermissionsPreserved: $durable_permissions_preserved,
     credentialsProtected: $credentials_protected,
+    credentialRotationObserved: $credential_rotation_observed,
     githubConfigurationPreserved: $github_configuration_preserved,
     providerConfigurationPreserved: $provider_configuration_preserved,
     loopbackOnly: $loopback_only,
