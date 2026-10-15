@@ -21,15 +21,15 @@ readonly budget_name="rivet-monthly-cost"
 readonly action="${1:-preflight}"
 
 case "$action" in
-  preflight | prepare)
+  preflight | prepare | plan)
     ;;
   *)
-    printf 'usage: %s [preflight|prepare]\n' "$0" >&2
+      printf 'usage: %s [preflight|prepare|plan]\n' "$0" >&2
     exit 64
     ;;
 esac
 
-for required_command in awk git install jq shasum sleep tofu; do
+for required_command in awk cat git install jq shasum sleep tofu; do
   if ! command -v "$required_command" >/dev/null 2>&1; then
     printf 'error: %s is required\n' "$required_command" >&2
     exit 1
@@ -405,6 +405,166 @@ if [[ "$action" == "prepare" ]]; then
 
   printf 'Protected preparation directory: %s\n' "$evidence_directory"
   printf 'Preparation completed; the canary and retained snapshot were created.\n'
-else
+elif [[ "$action" == "preflight" ]]; then
   printf 'Preflight is read-only; no infrastructure was changed.\n'
+else
+  override_file="${tofu_directory}/issue-14_override.tf.json"
+  plan_file="${evidence_directory}/destroy.tfplan"
+  plan_json="${evidence_directory}/destroy-plan.json"
+  plan_record="${evidence_directory}/plan.json"
+  readonly override_file plan_file plan_json plan_record
+
+  for evidence_file in \
+    "${evidence_directory}/canary.json" \
+    "${evidence_directory}/snapshot.json"; do
+    if [[ ! -r "$evidence_file" ]]; then
+      printf 'error: required preparation evidence is unreadable: %s\n' \
+        "$evidence_file" >&2
+      exit 1
+    fi
+  done
+
+  for output_file in "$override_file" "$plan_file" "$plan_json" "$plan_record"; do
+    if [[ -e "$output_file" ]]; then
+      printf 'error: destruction planning refuses to overwrite: %s\n' \
+        "$output_file" >&2
+      exit 1
+    fi
+  done
+
+  umask 077
+
+  cleanup_plan_override() {
+    rm -f -- "$override_file"
+  }
+
+  trap cleanup_plan_override EXIT
+
+  cat >"$override_file" <<'JSON'
+{
+  "resource": {
+    "aws_lightsail_instance": {
+      "workspace": {
+        "lifecycle": {
+          "prevent_destroy": false
+        }
+      }
+    },
+    "aws_lightsail_static_ip": {
+      "workspace": {
+        "lifecycle": {
+          "prevent_destroy": false
+        }
+      }
+    }
+  }
+}
+JSON
+  chmod 0600 "$override_file"
+
+  current_state_json="$(tofu -chdir="$tofu_directory" show -json)"
+  raw_state_json="$(tofu -chdir="$tofu_directory" state pull)"
+
+  operator_public_key="$(
+    jq -er '
+      .values.root_module.resources[] |
+      select(.address == "aws_lightsail_key_pair.operator") |
+      .values.public_key
+    ' <<<"$current_state_json"
+  )"
+
+  budget_email="$(
+    jq -er '
+      .values.root_module.resources[] |
+      select(.address == "aws_budgets_budget.workspace") |
+      .values.notification[0].subscriber_email_addresses[0]
+    ' <<<"$current_state_json"
+  )"
+
+  bootstrap_cidr="$(
+    jq -er '
+      .values.root_module.resources[] |
+      select(.address == "aws_lightsail_instance_public_ports.workspace") |
+      .values.port_info[0].cidrs[0]
+    ' <<<"$current_state_json"
+  )"
+
+  state_lineage="$(jq -er '.lineage' <<<"$raw_state_json")"
+  state_serial="$(jq -er '.serial' <<<"$raw_state_json")"
+
+  TF_VAR_operator_ssh_public_key="$operator_public_key" \
+  TF_VAR_budget_notification_email="$budget_email" \
+  TF_VAR_bootstrap_ipv4_cidr="$bootstrap_cidr" \
+    tofu -chdir="$tofu_directory" plan \
+      -destroy \
+      -input=false \
+      -out="$plan_file"
+
+  tofu -chdir="$tofu_directory" show -json "$plan_file" >"$plan_json"
+
+  if ! jq -e '
+    .resource_changes |
+    length == 6 and
+    all(.[]; .change.actions == ["delete"])
+  ' "$plan_json" >/dev/null; then
+    printf 'error: saved plan is not exactly six delete-only changes\n' >&2
+    exit 1
+  fi
+
+  planned_addresses="$(
+    jq -r '.resource_changes[].address' "$plan_json" |
+      LC_ALL=C sort
+  )"
+  readonly planned_addresses
+
+  if [[ "$planned_addresses" != "$expected_resources" ]]; then
+    printf 'error: saved plan exceeds the reviewed resource boundary\n' >&2
+    diff -u \
+      <(printf '%s\n' "$expected_resources") \
+      <(printf '%s\n' "$planned_addresses") >&2 || true
+    exit 1
+  fi
+
+  plan_sha256="$(
+    shasum -a 256 "$plan_file" |
+      awk '{print $1}'
+  )"
+  canary_record_sha256="$(
+    shasum -a 256 "${evidence_directory}/canary.json" |
+      awk '{print $1}'
+  )"
+  snapshot_record_sha256="$(
+    shasum -a 256 "${evidence_directory}/snapshot.json" |
+      awk '{print $1}'
+  )"
+  plan_created_at_utc="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  plan_repository_commit="$(git -C "$repository_root" rev-parse HEAD)"
+
+  jq -n \
+    --arg created_at_utc "$plan_created_at_utc" \
+    --arg repository_commit "$plan_repository_commit" \
+    --arg plan_sha256 "$plan_sha256" \
+    --arg state_lineage "$state_lineage" \
+    --argjson state_serial "$state_serial" \
+    --arg canary_record_sha256 "$canary_record_sha256" \
+    --arg snapshot_record_sha256 "$snapshot_record_sha256" \
+    --argjson resource_addresses \
+      "$(printf '%s\n' "$planned_addresses" | jq -R . | jq -s .)" \
+    '{
+      createdAtUtc: $created_at_utc,
+      repositoryCommit: $repository_commit,
+      planSha256: $plan_sha256,
+      stateLineage: $state_lineage,
+      stateSerial: $state_serial,
+      canaryRecordSha256: $canary_record_sha256,
+      snapshotRecordSha256: $snapshot_record_sha256,
+      resourceAddresses: $resource_addresses
+    }' >"$plan_record"
+
+  chmod 0600 "$plan_file" "$plan_json" "$plan_record"
+
+  unset current_state_json raw_state_json
+  unset operator_public_key budget_email bootstrap_cidr
+
+  printf 'Exact destruction plan saved for human review: %s\n' "$plan_file"
 fi
