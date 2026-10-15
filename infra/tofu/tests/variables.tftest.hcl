@@ -53,6 +53,17 @@ run "accepts_valid_operator_inputs" {
   }
 
   assert {
+    condition = try(
+      length(aws_lightsail_instance.workspace.add_on) == 1 &&
+      one(aws_lightsail_instance.workspace.add_on).type == "AutoSnapshot" &&
+      one(aws_lightsail_instance.workspace.add_on).status == "Enabled" &&
+      one(aws_lightsail_instance.workspace.add_on).snapshot_time == "20:00",
+      false
+    )
+    error_message = "The workspace must create one daily automatic snapshot at 20:00 UTC."
+  }
+
+  assert {
     condition = (
       aws_lightsail_instance.workspace.key_pair_name ==
       aws_lightsail_key_pair.operator.name

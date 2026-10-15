@@ -14,8 +14,10 @@ threads, worktrees, tests, diffs, and pull requests from anywhere.
 > A supervised T3 action has also completed from Android over mobile data while
 > the laptop was fully powered off, and a real host reboot restored the same
 > environment, repository, and thread without SSH repair or T3 Connect
-> re-pairing. Mobile pull-request, backup, restore, and operations work remains
-> in later implementation issues.
+> re-pairing. A Lightsail snapshot has also restored the durable workspace into
+> a clean replacement and passed phone, thread, repository, worktree,
+> credential, firewall, and cleanup verification. Health monitoring, updates,
+> and intentional workspace destruction remain in later implementation issues.
 
 ## The problem
 
@@ -132,7 +134,10 @@ A host reboot must restore the T3 service and make existing work reachable
 again.
 
 Rivet does not promise survival after the host and its storage are both
-destroyed. Backup and recovery must be configured and verified separately.
+destroyed. Phase 1 therefore keeps the latest seven daily Lightsail automatic
+snapshots and has verified a controlled replacement restore. Automatic
+snapshots remain coupled to the source instance, so an irreplaceable recovery
+point must be retained manually before deleting that source.
 
 ### 5. Deliver through GitHub
 
@@ -332,11 +337,14 @@ verifies that Rivet stops at an open pull request, cannot update the protected
 default branch directly, and cannot merge or deploy after a disconnect or T3
 service restart.
 
+The [backup-restoration runbook](docs/runbooks/restore-workspace-backup.md)
+defines the durable-state inventory, daily seven-point snapshot policy,
+least-privilege restore cutover, clean replacement verification, mobile-access
+gate, cost boundary, rollback limitation, and tagged cleanup procedure.
+
 Implementation issues must still resolve these choices with security and test
 evidence:
 
-- persistent-volume and workspace-backup procedures;
-- backup and recovery for the verified secret stores;
 - the T3 Code update and rollback policy; and
 - the health-monitoring and notification path.
 

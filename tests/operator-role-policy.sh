@@ -151,19 +151,27 @@ if ! jq -e '
           "lightsail:AllocateStaticIp",
           "lightsail:AttachStaticIp",
           "lightsail:CloseInstancePublicPorts",
+          "lightsail:CreateInstanceSnapshot",
           "lightsail:CreateInstances",
+          "lightsail:CreateInstancesFromSnapshot",
+          "lightsail:DisableAddOn",
+          "lightsail:EnableAddOn",
+          "lightsail:GetAutoSnapshots",
           "lightsail:GetBlueprints",
           "lightsail:GetBuckets",
           "lightsail:GetBundles",
           "lightsail:GetInstance",
           "lightsail:GetInstanceAccessDetails",
           "lightsail:GetInstancePortStates",
+          "lightsail:GetInstanceSnapshot",
+          "lightsail:GetInstanceSnapshots",
           "lightsail:GetInstanceState",
           "lightsail:GetInstances",
           "lightsail:GetKeyPair",
           "lightsail:GetKeyPairs",
           "lightsail:GetOperation",
           "lightsail:GetOperations",
+          "lightsail:GetOperationsForResource",
           "lightsail:GetRegions",
           "lightsail:GetStaticIp",
           "lightsail:GetStaticIps",
@@ -178,10 +186,41 @@ if ! jq -e '
             "aws:RequestedRegion": "ap-south-1"
           }
         }
+      },
+      {
+        "Sid": "DeleteRivetRestoreDrillResources",
+        "Effect": "Allow",
+        "Action": [
+          "lightsail:DeleteInstance",
+          "lightsail:DeleteInstanceSnapshot"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "aws:RequestedRegion": "ap-south-1",
+            "aws:ResourceTag/Project": "Rivet",
+            "aws:ResourceTag/Purpose": "RestoreDrill"
+          }
+        }
+      },
+      {
+        "Sid": "OperateRivetLightsailInstances",
+        "Effect": "Allow",
+        "Action": [
+          "lightsail:StartInstance",
+          "lightsail:StopInstance"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "aws:RequestedRegion": "ap-south-1",
+            "aws:ResourceTag/Project": "Rivet"
+          }
+        }
       }
     ]
   }' <<<"$lightsail_policy" >/dev/null; then
-  echo "The operator Lightsail policy must contain only the non-destructive Mumbai workspace actions" >&2
+  echo "The operator Lightsail policy must limit backup operations to Mumbai and destructive cleanup to tagged restore-drill resources" >&2
   exit 1
 fi
 

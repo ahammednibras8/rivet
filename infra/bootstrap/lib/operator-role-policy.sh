@@ -131,19 +131,27 @@ render_operator_lightsail_policy() {
         "lightsail:AllocateStaticIp",
         "lightsail:AttachStaticIp",
         "lightsail:CloseInstancePublicPorts",
+        "lightsail:CreateInstanceSnapshot",
         "lightsail:CreateInstances",
+        "lightsail:CreateInstancesFromSnapshot",
+        "lightsail:DisableAddOn",
+        "lightsail:EnableAddOn",
+        "lightsail:GetAutoSnapshots",
         "lightsail:GetBlueprints",
         "lightsail:GetBuckets",
         "lightsail:GetBundles",
         "lightsail:GetInstance",
         "lightsail:GetInstanceAccessDetails",
         "lightsail:GetInstancePortStates",
+        "lightsail:GetInstanceSnapshot",
+        "lightsail:GetInstanceSnapshots",
         "lightsail:GetInstanceState",
         "lightsail:GetInstances",
         "lightsail:GetKeyPair",
         "lightsail:GetKeyPairs",
         "lightsail:GetOperation",
         "lightsail:GetOperations",
+        "lightsail:GetOperationsForResource",
         "lightsail:GetRegions",
         "lightsail:GetStaticIp",
         "lightsail:GetStaticIps",
@@ -158,6 +166,37 @@ render_operator_lightsail_policy() {
           "aws:RequestedRegion": "ap-south-1"
         }
       }
+    },
+    {
+        "Sid": "DeleteRivetRestoreDrillResources",
+        "Effect": "Allow",
+        "Action": [
+            "lightsail:DeleteInstance",
+            "lightsail:DeleteInstanceSnapshot"
+        ],
+        "Resource": "*",
+        "Condition": {
+            "StringEquals": {
+                "aws:RequestedRegion": "ap-south-1",
+                "aws:ResourceTag/Project": "Rivet",
+                "aws:ResourceTag/Purpose": "RestoreDrill"
+            }
+        }
+    },
+    {
+        "Sid": "OperateRivetLightsailInstances",
+        "Effect": "Allow",
+        "Action": [
+            "lightsail:StartInstance",
+            "lightsail:StopInstance"
+        ],
+        "Resource": "*",
+        "Condition": {
+            "StringEquals": {
+                "aws:RequestedRegion": "ap-south-1",
+                "aws:ResourceTag/Project": "Rivet"
+            }
+        }
     }
   ]
 }
