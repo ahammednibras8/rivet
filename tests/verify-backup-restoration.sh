@@ -4,7 +4,7 @@ set -euo pipefail
 
 required_variables=(
   RIVET_WORKSPACE_IP
-  RIVET_WORKSPACE_PUBLIC_IP
+  RIVET_RESTORE_PUBLIC_IP
   RIVET_OPERATOR_SSH_PRIVATE_KEY
   RIVET_BACKUP_MARKER
   RIVET_BACKUP_CONTEXT
@@ -93,7 +93,7 @@ context_base64="$(printf '%s' "$RIVET_BACKUP_CONTEXT" | base64 | tr -d '\n')"
 remote_command="rivet_uid=\$(id -u rivet); sudo -u rivet env HOME=/home/rivet T3CODE_HOME=/home/rivet/.t3 PATH=/home/rivet/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin XDG_RUNTIME_DIR=/run/user/\${rivet_uid} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/\${rivet_uid}/bus bash -s -- '${marker_base64}' '${context_base64}' '${RIVET_RESTORE_REQUESTED_EPOCH}'"
 
 ssh \
-  -o "HostKeyAlias=${RIVET_WORKSPACE_PUBLIC_IP}" \
+  -o "HostKeyAlias=${RIVET_RESTORE_PUBLIC_IP}" \
   -o StrictHostKeyChecking=yes \
   -i "${RIVET_OPERATOR_SSH_PRIVATE_KEY}" \
   "rivet-admin@${RIVET_WORKSPACE_IP}" \
