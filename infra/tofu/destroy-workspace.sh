@@ -29,7 +29,7 @@ case "$action" in
     ;;
 esac
 
-for required_command in git install jq tofu; do
+for required_command in awk git install jq shasum tofu; do
   if ! command -v "$required_command" >/dev/null 2>&1; then
     printf 'error: %s is required\n' "$required_command" >&2
     exit 1
@@ -62,7 +62,14 @@ if [[ -n "$tracked_status" ]]; then
   exit 1
 fi
 
-require_temporary_aws_identity "$aws_region" >/dev/null
+aws_identity="$(require_temporary_aws_identity "$aws_region")"
+readonly aws_identity
+
+IFS=$'\t' read -r account_id operator_role_arn <<<"$aws_identity"
+readonly account_id operator_role_arn
+
+state_bucket="rivet-tofu-state-${account_id}-${aws_region}-an"
+readonly state_bucket
 
 expected_resources="$(
   printf '%s\n' \
@@ -90,7 +97,7 @@ if [[ "$actual_resources" != "$expected_resources" ]]; then
   exit 1
 fi
 
-printf 'AWS temporary-role preflight passed.\n'
+printf 'AWS temporary-role preflight passed: %s\n' "$operator_role_arn"
 printf 'Selected instance: %s\n' "$instance_name"
 printf 'Selected static IP: %s\n' "$static_ip_name"
 printf 'Selected key pair: %s\n' "$key_pair_name"
@@ -108,6 +115,115 @@ if [[ "$action" == "prepare" ]]; then
 
   umask 077
   install -d -m 0700 "$evidence_directory"
+
+  canary_key="canary/issue-14.json"
+  canary_body="${evidence_directory}/canary-body.json"
+  canary_record="${evidence_directory}/canary.json"
+  readonly canary_key canary_body canary_record
+
+  created_at_utc="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  repository_commit="$(git -C "$repository_root" rev-parse HEAD)"
+  readonly created_at_utc repository_commit
+
+  jq -n \
+    --arg created_at_utc "$created_at_utc" \
+    --arg repository_commit "$repository_commit" \
+    '{
+      schemaVersion: 1,
+      purpose: "Issue #14 unrelated destruction canary",
+      createdAtUtc: $created_at_utc,
+      repositoryCommit: $repository_commit
+    }' >"$canary_body"
+
+  put_response="$(
+    aws s3api put-object \
+      --bucket "$state_bucket" \
+      --key "$canary_key" \
+      --body "$canary_body" \
+      --server-side-encryption AES256 \
+      --content-type application/json \
+      --tagging "ManagedBy=Rivet&Project=Rivet&Purpose=DestructionCanary" \
+      --region "$aws_region"
+  )"
+  readonly put_response
+
+  version_id="$(
+    jq -er '.VersionId | select(type == "string" and length > 0)' \
+      <<<"$put_response"
+  )"
+  e_tag="$(jq -er '.ETag' <<<"$put_response")"
+  readonly version_id e_tag
+
+  canary_head="$(
+    aws s3api head-object \
+      --bucket "$state_bucket" \
+      --key "$canary_key" \
+      --version-id "$version_id" \
+      --region "$aws_region"
+  )"
+  readonly canary_head
+
+  if ! jq -e \
+    --arg version_id "$version_id" \
+    --arg e_tag "$e_tag" \
+    '
+      .ServerSideEncryption == "AES256" and
+      .VersionId == $version_id and
+      .ETag == $e_tag and
+      .ContentLength > 0
+    ' <<<"$canary_head" >/dev/null; then
+    printf 'error: destruction canary metadata verification failed\n' >&2
+    exit 1
+  fi
+
+  canary_tags="$(
+    aws s3api get-object-tagging \
+      --bucket "$state_bucket" \
+      --key "$canary_key" \
+      --version-id "$version_id" \
+      --region "$aws_region"
+  )"
+  readonly canary_tags
+
+  if ! jq -e '
+    (.TagSet | map({key: .Key, value: .Value}) | from_entries) as $tags |
+    $tags.ManagedBy == "Rivet" and
+    $tags.Project == "Rivet" and
+    $tags.Purpose == "DestructionCanary" and
+    ($tags | length) == 3
+  ' <<<"$canary_tags" >/dev/null; then
+    printf 'error: destruction canary tags verification failed\n' >&2
+    exit 1
+  fi
+
+  body_sha256="$(
+    shasum -a 256 "$canary_body" |
+      awk '{print $1}'
+  )"
+  readonly body_sha256
+
+  jq -n \
+    --arg bucket "$state_bucket" \
+    --arg key "$canary_key" \
+    --arg version_id "$version_id" \
+    --arg e_tag "$e_tag" \
+    --arg sha256 "$body_sha256" \
+    --arg created_at_utc "$created_at_utc" \
+    '{
+      bucket: $bucket,
+      key: $key,
+      versionId: $version_id,
+      eTag: $e_tag,
+      sha256: $sha256,
+      serverSideEncryption: "AES256",
+      createdAtUtc: $created_at_utc
+    }' >"$canary_record"
+
+  chmod 0600 "$canary_body" "$canary_record"
+
+  printf 'Encrypted destruction canary created and verified: s3://%s/%s\n' \
+    "$state_bucket" \
+    "$canary_key"
 
   printf 'Protected preparation directory: %s\n' "$evidence_directory"
   printf 'Local preparation completed; no AWS resources were changed.\n'
