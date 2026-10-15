@@ -202,6 +202,21 @@ if ! jq -e '
             "aws:ResourceTag/Purpose": "RestoreDrill"
           }
         }
+      },
+      {
+        "Sid": "OperateRivetLightsailInstances",
+        "Effect": "Allow",
+        "Action": [
+          "lightsail:StartInstance",
+          "lightsail:StopInstance"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "aws:RequestedRegion": "ap-south-1",
+            "aws:ResourceTag/Project": "Rivet"
+          }
+        }
       }
     ]
   }' <<<"$lightsail_policy" >/dev/null; then

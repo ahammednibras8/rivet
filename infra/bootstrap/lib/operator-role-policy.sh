@@ -182,6 +182,21 @@ render_operator_lightsail_policy() {
                 "aws:ResourceTag/Purpose": "RestoreDrill"
             }
         }
+    },
+    {
+        "Sid": "OperateRivetLightsailInstances",
+        "Effect": "Allow",
+        "Action": [
+            "lightsail:StartInstance",
+            "lightsail:StopInstance"
+        ],
+        "Resource": "*",
+        "Condition": {
+            "StringEquals": {
+                "aws:RequestedRegion": "ap-south-1",
+                "aws:ResourceTag/Project": "Rivet"
+            }
+        }
     }
   ]
 }
