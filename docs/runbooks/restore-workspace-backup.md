@@ -156,6 +156,9 @@ After recording evidence:
 5. Delete only the tagged manual drill snapshot.
 6. Confirm at least one successful automatic snapshot remains and OpenTofu
    still reports no drift.
+7. Remove only the clean restore-fixture worktree, its local verification
+   branch, and the protected Issue #13 baseline after the redacted evidence is
+   reviewed and recorded.
 
 New messages or repository writes made only on the temporary replacement are
 not copied back to the original disk. During a real disaster, the replacement
@@ -173,4 +176,3 @@ writes disposable and record this limitation explicitly.
 | SSH host key differs | Verify and pin the replacement key over the authenticated private route; never turn off checking. |
 | T3, repository, thread, or credential checks fail | Preserve both resources, keep only one running, and investigate before cleanup. |
 | Source fails to restart after drill cleanup | Keep the replacement stopped but undeleted so the recovery point remains available. |
-

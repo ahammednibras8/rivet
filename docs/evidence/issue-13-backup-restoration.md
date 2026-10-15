@@ -153,6 +153,11 @@ service returned active and enabled, and the phone reopened the original
 thread without re-pairing. AWS then reported one successful automatic snapshot
 and no remaining restore-drill instance or manual drill snapshot.
 
+The clean restore-fixture worktree, its local verification branch, the
+protected baseline, and the local restore timestamp were then removed. The
+primary cloud checkout remained clean on `feature/13-backup-restoration`; the
+real T3 thread, credentials, repository, and automatic backup remained.
+
 ## Explicit limitations
 
 - Automatic snapshots are tied to the source instance and are deleted with it
@@ -166,4 +171,3 @@ and no remaining restore-drill instance or manual drill snapshot.
   become authoritative.
 - The 675-second measurement includes operator execution and phone validation;
   it is evidence from this drill, not an availability guarantee.
-

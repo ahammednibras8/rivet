@@ -50,6 +50,7 @@ required_evidence_text=(
   'below USD 0.10'
   'one successful automatic snapshot'
   'no remaining restore-drill instance or manual drill snapshot'
+  'protected baseline, and the local restore timestamp were then removed'
 )
 
 for expected in "${required_evidence_text[@]}"; do
