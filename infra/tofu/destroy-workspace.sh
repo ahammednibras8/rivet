@@ -7,6 +7,7 @@ readonly script_directory
 repository_root="$(cd "${script_directory}/../.." && pwd)"
 readonly repository_root
 readonly tofu_directory="$script_directory"
+readonly evidence_directory="${repository_root}/temp/issue-14"
 
 # shellcheck source=infra/bootstrap/lib/aws-session.sh
 source "${repository_root}/infra/bootstrap/lib/aws-session.sh"
@@ -19,12 +20,16 @@ readonly key_pair_name="rivet-operator"
 readonly budget_name="rivet-monthly-cost"
 readonly action="${1:-preflight}"
 
-if [[ "$action" != "preflight" ]]; then
-  printf 'usage: %s [preflight]\n' "$0" >&2
-  exit 64
-fi
+case "$action" in
+  preflight | prepare)
+    ;;
+  *)
+    printf 'usage: %s [preflight|prepare]\n' "$0" >&2
+    exit 64
+    ;;
+esac
 
-for required_command in git jq tofu; do
+for required_command in git install jq tofu; do
   if ! command -v "$required_command" >/dev/null 2>&1; then
     printf 'error: %s is required\n' "$required_command" >&2
     exit 1
@@ -93,4 +98,19 @@ printf 'Selected budget: %s\n' "$budget_name"
 printf 'Selected OpenTofu resources: 6\n'
 printf 'Retained manual snapshot: outside OpenTofu state\n'
 printf 'State backend: outside OpenTofu state\n'
-printf 'Preflight is read-only; no infrastructure was changed.\n'
+
+if [[ "$action" == "prepare" ]]; then
+  if [[ -e "$evidence_directory" ]]; then
+    printf 'error: Preparation evidence already exists; review or remove it explicitly: %s\n' \
+      "$evidence_directory" >&2
+    exit 1
+  fi
+
+  umask 077
+  install -d -m 0700 "$evidence_directory"
+
+  printf 'Protected preparation directory: %s\n' "$evidence_directory"
+  printf 'Local preparation completed; no AWS resources were changed.\n'
+else
+  printf 'Preflight is read-only; no infrastructure was changed.\n'
+fi

@@ -31,6 +31,11 @@ required_text=(
   'aws_lightsail_static_ip.workspace'
   'aws_lightsail_static_ip_attachment.workspace'
   'tofu -chdir="$tofu_directory" state list'
+  'preflight | prepare'
+  'evidence_directory="${repository_root}/temp/issue-14"'
+  'install -d -m 0700 "$evidence_directory"'
+  'Preparation evidence already exists; review or remove it explicitly'
+  'Protected preparation directory:'
   'Tracked worktree must be clean before destruction planning'
   'OpenTofu state does not match the exact destruction boundary'
   'Preflight is read-only; no infrastructure was changed.'
@@ -57,6 +62,7 @@ prohibited_text=(
   'delete-instance-snapshot'
   'delete-auto-snapshot'
   'rm -rf'
+  'chmod 777'
 )
 
 for prohibited in "${prohibited_text[@]}"; do
