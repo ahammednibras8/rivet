@@ -66,6 +66,15 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/human-merge-boundary-docs.sh"
 "${repo_root}/tests/backup-restoration-policy.sh"
 "${repo_root}/tests/backup-restoration-docs.sh"
+"${repo_root}/tests/workspace-destroy-policy.sh"
+"${repo_root}/tests/workspace-destroy-role.sh"
+"${repo_root}/tests/workspace-destruction-policy.sh"
+"${repo_root}/tests/workspace-destruction-canary.sh"
+"${repo_root}/tests/workspace-destruction-snapshot.sh"
+"${repo_root}/tests/workspace-destruction-plan.sh"
+"${repo_root}/tests/workspace-destruction-apply.sh"
+"${repo_root}/tests/workspace-destruction-verification-policy.sh"
+"${repo_root}/tests/workspace-destruction-docs.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check

@@ -90,6 +90,9 @@ if [[ "${1:-}" == "iam" && "${2:-}" == "put-role-policy" ]]; then
     rivet-budget)
       destination="${FAKE_BUDGET_POLICY_FILE:?FAKE_BUDGET_POLICY_FILE is required}"
       ;;
+    rivet-workspace-destroy)
+      destination="${FAKE_DESTROY_POLICY_FILE:?FAKE_DESTROY_POLICY_FILE is required}"
+      ;;
     *)
       printf 'unexpected role policy name: %s\n' "$policy_name" >&2
       exit 64
@@ -97,6 +100,17 @@ if [[ "${1:-}" == "iam" && "${2:-}" == "put-role-policy" ]]; then
   esac
 
   command cp "${policy_uri#file://}" "$destination"
+  exit 0
+fi
+
+if [[ "${1:-}" == "iam" && "${2:-}" == "delete-role-policy" ]]; then
+  if [[ "$*" != 'iam delete-role-policy --role-name rivet-operator --policy-name rivet-workspace-destroy --region ap-south-1' ]]; then
+    printf 'unexpected delete-role-policy arguments\n' >&2
+    exit 64
+  fi
+
+  : "${FAKE_DESTROY_POLICY_FILE:?FAKE_DESTROY_POLICY_FILE is required}"
+  rm -f "$FAKE_DESTROY_POLICY_FILE"
   exit 0
 fi
 
@@ -143,6 +157,9 @@ case "$*" in
 
     printf '%s\n' "${FAKE_USER_ARN:-arn:aws:iam::123456789012:user/rivet-developer}"
     ;;
+  'lightsail get-static-ip --static-ip-name rivet-workspace-ip --region ap-south-1 --query staticIp.arn --output text')
+    printf '%s\n' "${FAKE_STATIC_IP_ARN:-arn:aws:lightsail:ap-south-1:123456789012:StaticIp/11111111-2222-3333-4444-555555555555}"
+    ;;
   'iam list-roles --region ap-south-1 --query Roles[?RoleName==`rivet-operator`].Arn | [0] --output text')
     printf '%s\n' "${FAKE_EXISTING_ROLE_ARN:-None}"
     ;;
@@ -154,6 +171,18 @@ case "$*" in
     ;;
   'iam list-role-policies --role-name rivet-operator --region ap-south-1 --query sort(PolicyNames) --output json')
     printf '%s\n' "${FAKE_ROLE_INLINE_POLICIES:-[\"rivet-budget\",\"rivet-identity\",\"rivet-lightsail\",\"rivet-state-backend\"]}"
+    ;;
+  'iam get-role-policy --role-name rivet-operator --policy-name rivet-workspace-destroy --region ap-south-1 --query PolicyDocument --output json')
+    : "${FAKE_DESTROY_POLICY_FILE:?FAKE_DESTROY_POLICY_FILE is required}"
+    [[ -s "$FAKE_DESTROY_POLICY_FILE" ]] || exit 254
+    command cat "$FAKE_DESTROY_POLICY_FILE"
+    ;;
+  'iam list-role-policies --role-name rivet-operator --region ap-south-1 --query contains(PolicyNames, `rivet-workspace-destroy`) --output text')
+    if [[ -s "${FAKE_DESTROY_POLICY_FILE:?FAKE_DESTROY_POLICY_FILE is required}" ]]; then
+      printf 'True\n'
+    else
+      printf 'False\n'
+    fi
     ;;
   'iam list-attached-role-policies --role-name rivet-operator --region ap-south-1 --query sort(AttachedPolicies[].PolicyName) --output json')
     printf '%s\n' "${FAKE_ROLE_ATTACHED_POLICIES:-[]}"
