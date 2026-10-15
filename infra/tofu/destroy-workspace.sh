@@ -21,10 +21,10 @@ readonly budget_name="rivet-monthly-cost"
 readonly action="${1:-preflight}"
 
 case "$action" in
-  preflight | prepare | plan)
+  preflight | prepare | plan | apply)
     ;;
   *)
-      printf 'usage: %s [preflight|prepare|plan]\n' "$0" >&2
+    printf 'usage: %s [preflight|prepare|plan|apply]\n' "$0" >&2
     exit 64
     ;;
 esac
@@ -407,7 +407,7 @@ if [[ "$action" == "prepare" ]]; then
   printf 'Preparation completed; the canary and retained snapshot were created.\n'
 elif [[ "$action" == "preflight" ]]; then
   printf 'Preflight is read-only; no infrastructure was changed.\n'
-else
+elif [[ "$action" == "plan" ]]; then
   override_file="${tofu_directory}/issue-14_override.tf.json"
   plan_file="${evidence_directory}/destroy.tfplan"
   plan_json="${evidence_directory}/destroy-plan.json"
@@ -567,4 +567,183 @@ JSON
   unset operator_public_key budget_email bootstrap_cidr
 
   printf 'Exact destruction plan saved for human review: %s\n' "$plan_file"
+else
+  plan_file="${evidence_directory}/destroy.tfplan"
+  plan_json="${evidence_directory}/destroy-plan.json"
+  plan_record="${evidence_directory}/plan.json"
+  canary_record="${evidence_directory}/canary.json"
+  snapshot_record="${evidence_directory}/snapshot.json"
+  readonly plan_file plan_json plan_record canary_record snapshot_record
+
+  for evidence_file in \
+    "$plan_file" \
+    "$plan_json" \
+    "$plan_record" \
+    "$canary_record" \
+    "$snapshot_record"; do
+    if [[ ! -r "$evidence_file" ]]; then
+      printf 'error: required reviewed evidence is unreadable: %s\n' \
+        "$evidence_file" >&2
+      exit 1
+    fi
+  done
+
+  reviewed_commit="$(jq -er '.repositoryCommit' "$plan_record")"
+  current_commit="$(git -C "$repository_root" rev-parse HEAD)"
+
+  if [[ "$current_commit" != "$reviewed_commit" ]]; then
+    printf 'error: repository commit changed after destruction planning\n' >&2
+    exit 1
+  fi
+
+  expected_plan_sha256="$(jq -er '.planSha256' "$plan_record")"
+  actual_plan_sha256="$(
+    shasum -a 256 "$plan_file" |
+      awk '{print $1}'
+  )"
+
+  if [[ "$actual_plan_sha256" != "$expected_plan_sha256" ]]; then
+    printf 'error: saved destruction plan digest changed\n' >&2
+    exit 1
+  fi
+
+  expected_canary_sha256="$(jq -er '.canaryRecordSha256' "$plan_record")"
+  actual_canary_sha256="$(
+    shasum -a 256 "${evidence_directory}/canary.json" |
+      awk '{print $1}'
+  )"
+
+  if [[ "$actual_canary_sha256" != "$expected_canary_sha256" ]]; then
+    printf 'error: canary evidence changed after destruction planning\n' >&2
+    exit 1
+  fi
+
+  expected_snapshot_sha256="$(jq -er '.snapshotRecordSha256' "$plan_record")"
+  actual_snapshot_sha256="$(
+    shasum -a 256 "${evidence_directory}/snapshot.json" |
+      awk '{print $1}'
+  )"
+
+  if [[ "$actual_snapshot_sha256" != "$expected_snapshot_sha256" ]]; then
+    printf 'error: snapshot evidence changed after destruction planning\n' >&2
+    exit 1
+  fi
+
+  current_raw_state="$(tofu -chdir="$tofu_directory" state pull)"
+  current_state_lineage="$(jq -er '.lineage' <<<"$current_raw_state")"
+  current_state_serial="$(jq -er '.serial' <<<"$current_raw_state")"
+  reviewed_state_lineage="$(jq -er '.stateLineage' "$plan_record")"
+  reviewed_state_serial="$(jq -er '.stateSerial' "$plan_record")"
+
+  if [[ "$current_state_lineage" != "$reviewed_state_lineage" ||
+    "$current_state_serial" != "$reviewed_state_serial" ]]; then
+    printf 'error: OpenTofu state changed after destruction planning\n' >&2
+    exit 1
+  fi
+
+  if ! jq -e '
+    .resource_changes |
+    length == 6 and
+    all(.[]; .change.actions == ["delete"])
+  ' "$plan_json" >/dev/null; then
+    printf 'error: reviewed plan is no longer six delete-only changes\n' >&2
+    exit 1
+  fi
+
+  reviewed_addresses="$(
+    jq -r '.resource_changes[].address' "$plan_json" |
+      LC_ALL=C sort
+  )"
+
+  if [[ "$reviewed_addresses" != "$expected_resources" ]]; then
+    printf 'error: reviewed plan exceeds the exact resource boundary\n' >&2
+    exit 1
+  fi
+
+  canary_bucket="$(jq -er '.bucket' "$canary_record")"
+  canary_key="$(jq -er '.key' "$canary_record")"
+  canary_version="$(jq -er '.versionId' "$canary_record")"
+  canary_etag="$(jq -er '.eTag' "$canary_record")"
+
+  canary_head="$(
+    aws s3api head-object \
+      --bucket "$canary_bucket" \
+      --key "$canary_key" \
+      --region "$aws_region"
+  )"
+
+  if ! jq -e \
+    --arg version_id "$canary_version" \
+    --arg e_tag "$canary_etag" \
+    '
+      .VersionId == $version_id and
+      .ETag == $e_tag and
+      .ServerSideEncryption == "AES256" and
+      .ContentLength > 0
+    ' <<<"$canary_head" >/dev/null; then
+    printf 'error: destruction canary changed after planning\n' >&2
+    exit 1
+  fi
+
+  canary_tags="$(
+    aws s3api get-object-tagging \
+      --bucket "$canary_bucket" \
+      --key "$canary_key" \
+      --region "$aws_region"
+  )"
+
+  if ! jq -e '
+    (.TagSet | map({key: .Key, value: .Value}) | from_entries) as $tags |
+    $tags.ManagedBy == "Rivet" and
+    $tags.Project == "Rivet" and
+    $tags.Purpose == "DestructionCanary" and
+    ($tags | length) == 3
+  ' <<<"$canary_tags" >/dev/null; then
+    printf 'error: destruction canary tags changed after planning\n' >&2
+    exit 1
+  fi
+
+  snapshot_name="$(jq -er '.name' "$snapshot_record")"
+  snapshot_response="$(
+    aws lightsail get-instance-snapshot \
+      --instance-snapshot-name "$snapshot_name" \
+      --region "$aws_region"
+  )"
+
+  if ! jq -e \
+    --arg snapshot_name "$snapshot_name" \
+    '
+      .instanceSnapshot as $snapshot |
+      ($snapshot.tags |
+        map({key: .key, value: .value}) |
+        from_entries
+      ) as $tags |
+      $snapshot.name == $snapshot_name and
+      $snapshot.state == "available" and
+      $snapshot.fromInstanceName == "rivet-workspace" and
+      $snapshot.sizeInGb == 80 and
+      $tags.ManagedBy == "Rivet" and
+      $tags.Project == "Rivet" and
+      $tags.Purpose == "RetainedBackup" and
+      $tags.Workspace == "primary"
+    ' <<<"$snapshot_response" >/dev/null; then
+    printf 'error: retained recovery snapshot changed after planning\n' >&2
+    exit 1
+  fi
+
+  printf '%s\n' \
+    'Type DESTROY rivet-workspace rivet-workspace-ip rivet-operator rivet-monthly-cost to continue:' >&2
+  IFS= read -r confirmation
+
+  if [[ "$confirmation" != \
+    "DESTROY rivet-workspace rivet-workspace-ip rivet-operator rivet-monthly-cost" ]]; then
+    printf 'error: workspace destruction confirmation did not match\n' >&2
+    exit 1
+  fi
+
+  tofu -chdir="$tofu_directory" apply \
+    -input=false \
+    "$plan_file"
+
+  printf 'Reviewed destruction plan applied.\n'
 fi

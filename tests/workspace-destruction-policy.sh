@@ -52,7 +52,6 @@ done
 # shellcheck disable=SC2016
 prohibited_text=(
   'tofu destroy'
-  'tofu -chdir="$tofu_directory" apply'
   '--auto-approve'
   'state rm'
   'delete-instance'

@@ -11,7 +11,7 @@ bash -n "$script"
 # shellcheck disable=SC2016
 required_text=(
   'preflight | prepare | plan'
-  'usage: %s [preflight|prepare|plan]\n'
+  'usage: %s [preflight|prepare|plan|apply]\n'
   'override_file="${tofu_directory}/issue-14_override.tf.json"'
   'plan_file="${evidence_directory}/destroy.tfplan"'
   'plan_json="${evidence_directory}/destroy-plan.json"'
