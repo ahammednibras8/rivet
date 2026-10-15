@@ -10,14 +10,16 @@ Code mobile app connects to that host, and the developer continues the same
 threads, worktrees, tests, diffs, and pull requests from anywhere.
 
 > **Project status:** The AWS cloud foundation, secure T3 Connect access, and
-> the first repository and coding-agent provider are provisioned and verified.
+> the first repository and coding-agent provider were provisioned and verified.
 > A supervised T3 action has also completed from Android over mobile data while
 > the laptop was fully powered off, and a real host reboot restored the same
 > environment, repository, and thread without SSH repair or T3 Connect
 > re-pairing. A Lightsail snapshot has also restored the durable workspace into
 > a clean replacement and passed phone, thread, repository, worktree,
-> credential, firewall, and cleanup verification. Health monitoring, updates,
-> and intentional workspace destruction remain in later implementation issues.
+> credential, firewall, and cleanup verification. The final destructive drill
+> then removed exactly the selected workspace resources while retaining an
+> available manual snapshot, unchanged S3 canary, and protected state history.
+> Health monitoring and updates remain in later implementation issues.
 
 ## The problem
 
@@ -341,6 +343,12 @@ The [backup-restoration runbook](docs/runbooks/restore-workspace-backup.md)
 defines the durable-state inventory, daily seven-point snapshot policy,
 least-privilege restore cutover, clean replacement verification, mobile-access
 gate, cost boundary, rollback limitation, and tagged cleanup procedure.
+
+The [safe workspace-destruction runbook](docs/runbooks/destroy-workspace-safely.md)
+defines the six-resource deletion boundary, retained recovery snapshot,
+unrelated canary, reviewed saved-plan and typed-confirmation gates,
+post-destruction verification, continuing cost, and temporary-permission
+revocation procedure.
 
 Implementation issues must still resolve these choices with security and test
 evidence:
