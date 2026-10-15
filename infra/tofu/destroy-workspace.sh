@@ -29,7 +29,7 @@ case "$action" in
     ;;
 esac
 
-for required_command in awk git install jq shasum tofu; do
+for required_command in awk git install jq shasum sleep tofu; do
   if ! command -v "$required_command" >/dev/null 2>&1; then
     printf 'error: %s is required\n' "$required_command" >&2
     exit 1
@@ -98,6 +98,62 @@ if [[ "$actual_resources" != "$expected_resources" ]]; then
 fi
 
 printf 'AWS temporary-role preflight passed: %s\n' "$operator_role_arn"
+
+wait_for_instance_state() {
+  local expected_state="$1"
+  local instance_state
+
+  for ((attempt = 1; attempt <= 60; attempt++)); do
+    instance_state="$(
+      aws lightsail get-instance-state \
+        --instance-name "$instance_name" \
+        --region "$aws_region" \
+        --query state.name \
+        --output text
+    )"
+
+    if [[ "$instance_state" == "$expected_state" ]]; then
+      return 0
+    fi
+
+    sleep 5
+  done
+
+  printf 'error: instance did not reach state %s\n' "$expected_state" >&2
+  return 1
+}
+
+wait_for_snapshot_available() {
+  local snapshot_name="$1"
+  local snapshot_response
+  local snapshot_state
+
+  for ((attempt = 1; attempt <= 360; attempt++)); do
+    snapshot_response="$(
+      aws lightsail get-instance-snapshot \
+        --instance-snapshot-name "$snapshot_name" \
+        --region "$aws_region"
+    )"
+    snapshot_state="$(jq -r '.instanceSnapshot.state' <<<"$snapshot_response")"
+
+    if [[ "$snapshot_state" == "available" ]]; then
+      printf '%s\n' "$snapshot_response"
+      return 0
+    fi
+
+    if [[ "$snapshot_state" != "pending" ]]; then
+      printf 'error: retained snapshot entered state %s\n' \
+        "$snapshot_state" >&2
+      return 1
+    fi
+
+    sleep 10
+  done
+
+  printf 'error: retained snapshot did not become available\n' >&2
+  return 1
+}
+
 printf 'Selected instance: %s\n' "$instance_name"
 printf 'Selected static IP: %s\n' "$static_ip_name"
 printf 'Selected key pair: %s\n' "$key_pair_name"
@@ -225,8 +281,130 @@ if [[ "$action" == "prepare" ]]; then
     "$state_bucket" \
     "$canary_key"
 
+  snapshot_record="${evidence_directory}/snapshot.json"
+  snapshot_name="${instance_name}-retained-$(date -u '+%Y%m%dT%H%M%SZ')"
+  readonly snapshot_record snapshot_name
+
+  manual_snapshots="$(
+    aws lightsail get-instance-snapshots \
+      --region "$aws_region"
+  )"
+  readonly manual_snapshots
+
+  if ! jq -e '
+    [
+      .instanceSnapshots[]? |
+      (.tags | map({key: .key, value: .value}) | from_entries) as $tags |
+      select(
+        $tags.Project == "Rivet" and
+        $tags.Purpose == "RetainedBackup"
+      )
+    ] |
+    length == 0
+  ' <<<"$manual_snapshots" >/dev/null; then
+    printf 'error: a retained Rivet snapshot already exists\n' >&2
+    exit 1
+  fi
+
+  initial_instance_state="$(
+    aws lightsail get-instance-state \
+      --instance-name "$instance_name" \
+      --region "$aws_region" \
+      --query state.name \
+      --output text
+  )"
+  readonly initial_instance_state
+
+  if [[ "$initial_instance_state" != "running" ]]; then
+    printf 'error: workspace must be running before snapshot preparation\n' >&2
+    exit 1
+  fi
+
+  restart_required=false
+
+  restart_instance_after_failure() {
+    local exit_status=$?
+
+    if [[ "$restart_required" == true ]]; then
+      aws lightsail start-instance \
+        --instance-name "$instance_name" \
+        --region "$aws_region" >/dev/null 2>&1 || true
+    fi
+
+    return "$exit_status"
+  }
+
+  trap restart_instance_after_failure EXIT
+
+  aws lightsail stop-instance \
+    --instance-name "$instance_name" \
+    --region "$aws_region" >/dev/null
+  restart_required=true
+
+  wait_for_instance_state stopped
+
+  aws lightsail create-instance-snapshot \
+    --instance-name "$instance_name" \
+    --instance-snapshot-name "$snapshot_name" \
+    --tags \
+      key=ManagedBy,value=Rivet \
+      key=Project,value=Rivet \
+      key=Purpose,value=RetainedBackup \
+      key=Workspace,value=primary \
+    --region "$aws_region" >/dev/null
+
+  aws lightsail start-instance \
+    --instance-name "$instance_name" \
+    --region "$aws_region" >/dev/null
+
+  wait_for_instance_state running
+  restart_required=false
+
+  snapshot_response="$(wait_for_snapshot_available "$snapshot_name")"
+  readonly snapshot_response
+
+  if ! jq -e \
+    --arg snapshot_name "$snapshot_name" \
+    '
+      .instanceSnapshot as $snapshot |
+      ($snapshot.tags |
+        map({key: .key, value: .value}) |
+        from_entries
+      ) as $tags |
+      $snapshot.name == $snapshot_name and
+      $snapshot.state == "available" and
+      $snapshot.fromInstanceName == "rivet-workspace" and
+      $snapshot.sizeInGb == 80 and
+      $tags.ManagedBy == "Rivet" and
+      $tags.Project == "Rivet" and
+      $tags.Purpose == "RetainedBackup" and
+      $tags.Workspace == "primary"
+    ' <<<"$snapshot_response" >/dev/null; then
+    printf 'error: retained snapshot verification failed\n' >&2
+    exit 1
+  fi
+
+  jq '
+    .instanceSnapshot |
+    {
+      name,
+      arn,
+      state,
+      fromInstanceName,
+      createdAt,
+      sizeInGb,
+      tags,
+      monthlyUpperBoundUsd: 4
+    }
+  ' <<<"$snapshot_response" >"$snapshot_record"
+
+  chmod 0600 "$snapshot_record"
+
+  printf 'Retained manual snapshot created and verified: %s\n' \
+    "$snapshot_name"
+
   printf 'Protected preparation directory: %s\n' "$evidence_directory"
-  printf 'Local preparation completed; no AWS resources were changed.\n'
+  printf 'Preparation completed; the canary and retained snapshot were created.\n'
 else
   printf 'Preflight is read-only; no infrastructure was changed.\n'
 fi
