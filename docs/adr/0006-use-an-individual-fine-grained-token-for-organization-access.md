@@ -26,6 +26,12 @@ one fine-grained personal access token owned by the operator's individual
 GitHub identity. The organization owner has approved the token request and can
 review or revoke its organization access independently.
 
+GitHub actions performed with this token retain the operator's user
+attribution. Rivet will not use an installation token or bot attribution for
+the pilot. A future GitHub App may use a user access token when individual
+attribution remains required, or an installation token only after the
+organization explicitly accepts bot attribution.
+
 The token boundary is:
 
 - resource owner: the approving GitHub organization;
@@ -54,6 +60,20 @@ to the cloud host only through a hidden-input procedure and stored in a
 service-owned secret location with mode `0600`. The token must not be installed
 on the host until the organization workspace and its isolation controls are
 ready for verification.
+
+## Organization approval path
+
+The operator creates the token from their own GitHub account, selects the
+organization as resource owner, selects only manually approved repositories,
+and requests only the permissions in this decision. When the organization
+requires approval, GitHub keeps the request pending and blocks access to its
+private resources until an organization owner reviews the requested
+repositories, permissions, and expiry under **Organization settings → Personal
+access tokens → Pending requests** and approves it.
+
+Approval never grants more than the requested boundary and does not replace
+Rivet's repository allowlist, default-branch protection, or negative
+permission tests.
 
 ## Default-branch boundary
 
@@ -110,6 +130,25 @@ separate offboarding procedure.
 
 Revocation is accepted only after authenticated fetch and push both fail while
 unrelated personal access remains unaffected.
+
+A fine-grained personal access token has no Rivet-managed refresh flow. Normal
+rotation requires the operator to create a replacement with the same or
+narrower boundary, obtain any required organization approval, verify the new
+token, replace the stored credential through hidden input, and revoke the old
+token. Rivet must never keep both credentials active after the replacement is
+verified.
+
+For suspected exposure, the operator must stop GitHub operations, revoke the
+token from their GitHub account, remove the stored host credential, and notify
+the organization owner. The owner can independently revoke the token's
+organization access. Recovery requires a new bounded token; Rivet must not
+restore the exposed credential from a backup or copy it from another device.
+
+When a repository assignment or contract ends, Rivet must revoke access first,
+then delete the checkout, worktrees, T3 project and thread state, caches,
+repository-bearing logs, and every backup the organization authorized. The
+operator must record redacted deletion evidence without publishing repository
+names, source, credentials, prompts, or private logs.
 
 ## Consequences
 
