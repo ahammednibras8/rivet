@@ -60,7 +60,7 @@ expected_playbook='---
         - name: Verify staged repository approvals against GitHub
           ansible.builtin.command:
             argv:
-              - /home/rivet/.local/bin/rivet-repository-allowlist
+              - /usr/local/bin/rivet-repository-allowlist
               - verify
               - --manifest
               - "{{ repository_allowlist_staging.path }}"
