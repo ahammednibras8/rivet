@@ -309,6 +309,11 @@ covers the approved repository boundary, read-only GitHub credential,
 cloud-owned checkout, managed Codex provider, supervised mobile thread, and
 credential rotation workflow.
 
+The [organization repository allowlist runbook](docs/runbooks/manage-repository-allowlist.md)
+defines exact-repository approval, immutable GitHub identity verification,
+private operator-controlled manifest installation, and fail-closed handling of
+repository or authorization changes without repository enumeration.
+
 The [laptop-independent operation runbook](docs/runbooks/verify-laptop-independent-operation.md)
 records and compares protected cloud identities around a real laptop-off,
 mobile-data verification without publishing host, environment, thread, or
