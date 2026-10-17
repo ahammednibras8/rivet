@@ -14,11 +14,12 @@ expected_loopback='- name: Maintain T3 Code service override directory
     group: rivet
     mode: "0700"
 
-- name: Pin T3 Code service to loopback
+- name: Harden the T3 Code service runtime
   ansible.builtin.copy:
     content: |
       [Service]
       Environment=T3CODE_HOST=127.0.0.1
+      UMask=0027
     dest: /home/rivet/.config/systemd/user/t3code.service.d/10-loopback.conf
     owner: rivet
     group: rivet
