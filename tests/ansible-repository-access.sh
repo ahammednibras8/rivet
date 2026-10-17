@@ -18,6 +18,14 @@ expected_tasks='---
     group: rivet
     mode: "0750"
 
+- name: Maintain Rivet local command directory
+  ansible.builtin.file:
+    path: /home/rivet/.local/bin
+    state: directory
+    owner: rivet
+    group: rivet
+    mode: "0750"
+
 - name: Install repository approval command
   ansible.builtin.copy:
     src: rivet-repository-allowlist

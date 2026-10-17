@@ -10,6 +10,7 @@ expected_install='- name: Read the T3 Code service account
   ansible.builtin.getent:
     database: passwd
     key: rivet
+  when: not ansible_check_mode
 
 - name: Wait for the T3 Code user manager
   ansible.builtin.wait_for:
