@@ -59,6 +59,7 @@ fi
 git init --quiet --initial-branch=main "$4"
 git -C "$4" remote add origin \
   https://github.com/example-organization/example-repository.git
+chmod g+w "$4"
 SH
 chmod +x "$fake_bin/gh"
 
@@ -107,6 +108,13 @@ clone_call="$(sed -n '2p' "$calls")"
 expected_clone_prefix="gh repo clone example-organization/example-repository ${workspace}/example-organization/.clone."
 if [[ "$clone_call" != "${expected_clone_prefix}"*"/checkout -- --branch main --single-branch" ]]; then
   echo "The clone target and default branch must come only from the approved entry" >&2
+  exit 1
+fi
+
+if find "$expected_checkout" -xdev \
+  \( -perm -0020 -o -perm -0002 \) -print -quit |
+  grep -q .; then
+  echo "Repository clone retained group-writable or world-writable state" >&2
   exit 1
 fi
 

@@ -8,6 +8,7 @@ workspace_root=/home/rivet/workspaces
 organization_workspace=/home/rivet/workspaces/organizations
 
 cd /
+umask 0027
 
 usage() {
   echo "Usage: rivet-repository {verify|clone|status}" >&2
@@ -83,6 +84,10 @@ case "$1" in
       --branch "$default_branch" \
       --single-branch \
       >/dev/null 2>&1; then
+      fail_operation
+    fi
+
+    if ! chmod -R go-w "${staging_directory}/checkout"; then
       fail_operation
     fi
 

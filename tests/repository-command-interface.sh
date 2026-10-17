@@ -37,6 +37,7 @@ for required_line in \
   "repository_manifest=/home/rivet/.config/rivet/repositories.json" \
   "allowlist_validator=/usr/local/bin/rivet-repository-allowlist" \
   "cd /" \
+  "umask 0027" \
   "exec \"\$allowlist_validator\" verify --manifest \"\$repository_manifest\""; do
   if ! grep -Fq "$required_line" "$command_file"; then
     echo "The verify operation must use only the installed private allowlist" >&2
