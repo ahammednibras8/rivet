@@ -293,7 +293,8 @@ absence must be verified rather than inferred from omitted configuration.
 ## Trust the SSH host key
 
 Obtain the ED25519 fingerprint witnessed by the authenticated Lightsail API,
-then compare it with the key presented over the network:
+then compare it with the key presented over the network. Filter
+`ssh-keyscan` output because it can emit banner lines before the key:
 
 ```bash
 expected_host_fingerprint="$(
@@ -305,7 +306,10 @@ expected_host_fingerprint="$(
     --output text
 )"
 
-host_key_line="$(ssh-keyscan -T 10 -t ed25519 "$RIVET_WORKSPACE_IP" 2>/dev/null)"
+host_key_line="$(
+  ssh-keyscan -T 10 -t ed25519 "$RIVET_WORKSPACE_IP" 2>/dev/null |
+    awk 'NF == 3 && $2 == "ssh-ed25519" { print; exit }'
+)"
 observed_host_fingerprint="$(
   printf '%s\n' "$host_key_line" | ssh-keygen -E sha256 -lf - | awk '{print $2}'
 )"
@@ -313,14 +317,25 @@ observed_host_fingerprint="$(
 printf 'AWS-witnessed: %s\nNetwork-presented: %s\n' \
   "$expected_host_fingerprint" \
   "$observed_host_fingerprint"
+test -n "$expected_host_fingerprint"
+test -n "$observed_host_fingerprint"
 test "$expected_host_fingerprint" = "$observed_host_fingerprint"
 ```
 
-Do not continue if the comparison fails or either value is empty. After a
-successful comparison, add the already-verified key to the control node:
+Do not continue if the comparison fails or either value is empty. If the
+Lightsail API has not populated `hostKeys`, stop and explicitly approve a
+trust-on-first-use bootstrap only while the replacement host contains no
+credentials or organization data. Require three successful scans with one
+unique ED25519 fingerprint, pin that key, and compare it with the host key
+after the first strict connection.
+
+After either approved verification path, replace the obsolete key for the
+reprovisioned static IP and add the verified key to the control node:
 
 ```bash
 install -d -m 700 "$HOME/.ssh"
+touch "$HOME/.ssh/known_hosts"
+ssh-keygen -R "$RIVET_WORKSPACE_IP" -f "$HOME/.ssh/known_hosts" >/dev/null 2>&1 || true
 printf '%s\n' "$host_key_line" >>"$HOME/.ssh/known_hosts"
 chmod 600 "$HOME/.ssh/known_hosts"
 ```
@@ -333,6 +348,7 @@ public SSH route:
 ```bash
 ssh \
   -i "$RIVET_OPERATOR_SSH_PRIVATE_KEY" \
+  -o StrictHostKeyChecking=yes \
   "rivet-admin@${RIVET_WORKSPACE_IP}" \
   'cloud-init status --wait --long'
 ```
