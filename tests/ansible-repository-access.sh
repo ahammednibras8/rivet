@@ -24,6 +24,14 @@ expected_tasks='---
     dest: /usr/local/bin/rivet-repository-allowlist
     owner: root
     group: root
+    mode: "0755"
+
+- name: Install guarded repository command
+  ansible.builtin.copy:
+    src: rivet-repository
+    dest: /usr/local/bin/rivet-repository
+    owner: root
+    group: root
     mode: "0755"'
 
 if [[ ! -f "$tasks_file" ]] || [[ "$(<"$tasks_file")" != "$expected_tasks" ]]; then

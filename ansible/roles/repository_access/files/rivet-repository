@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repository_manifest=/home/rivet/.config/rivet/repositories.json
+allowlist_validator=/usr/local/bin/rivet-repository-allowlist
+
+usage() {
+  echo "Usage: rivet-repository verify" >&2
+  exit 2
+}
+
+if [[ $# -ne 1 ]]; then
+  usage
+fi
+
+case "$1" in
+  verify)
+    exec "$allowlist_validator" verify --manifest "$repository_manifest"
+    ;;
+  *)
+    usage
+    ;;
+esac

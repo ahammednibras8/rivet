@@ -29,6 +29,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-github-cli-install.sh"
 "${repo_root}/tests/repository-allowlist-schema.sh"
 "${repo_root}/tests/repository-allowlist-remote-policy.sh"
+"${repo_root}/tests/repository-command-interface.sh"
 "${repo_root}/tests/ansible-repository-access.sh"
 "${repo_root}/tests/ansible-repository-allowlist-install.sh"
 "${repo_root}/tests/repository-allowlist-docs.sh"
