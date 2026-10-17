@@ -4,7 +4,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 command_file="${repo_root}/ansible/roles/repository_access/files/rivet-repository"
-expected_usage='Usage: rivet-repository {verify|clone|status}'
+expected_usage='Usage: rivet-repository {verify|clone|status|register}'
 
 if [[ ! -x "$command_file" ]]; then
   echo "The guarded repository command must be installed from an executable source file" >&2
@@ -32,6 +32,7 @@ expect_usage_rejection "an arbitrary operation" unlisted
 expect_usage_rejection "arbitrary repository input" verify example/repository
 expect_usage_rejection "a clone target supplied by the caller" clone example/repository
 expect_usage_rejection "a status target supplied by the caller" status example/repository
+expect_usage_rejection "a register target supplied by the caller" register example/repository
 
 for required_line in \
   "repository_manifest=/home/rivet/.config/rivet/repositories.json" \

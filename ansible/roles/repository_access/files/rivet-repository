@@ -6,12 +6,15 @@ repository_manifest=/home/rivet/.config/rivet/repositories.json
 allowlist_validator=/usr/local/bin/rivet-repository-allowlist
 workspace_root=/home/rivet/workspaces
 organization_workspace=/home/rivet/workspaces/organizations
+t3_binary=/home/rivet/.local/bin/t3
+t3_home=/home/rivet/.t3
+t3_database="${t3_home}/userdata/state.sqlite"
 
 cd /
 umask 0027
 
 usage() {
-  echo "Usage: rivet-repository {verify|clone|status}" >&2
+  echo "Usage: rivet-repository {verify|clone|status|register}" >&2
   exit 2
 }
 
@@ -176,6 +179,71 @@ case "$1" in
     fi
 
     echo "Approved repository checkout is valid."
+    ;;
+  register)
+    if ! "$0" status >/dev/null 2>&1; then
+      fail_operation
+    fi
+
+    organization="$(
+      jq -r '.repositories[0].organization' "$repository_manifest"
+    )"
+    repository_name="$(
+      jq -r '.repositories[0].expected_name' "$repository_manifest"
+    )"
+
+    [[ "$organization" =~ ^[A-Za-z0-9-]+$ ]] ||
+      fail_operation
+    [[ "$repository_name" =~ ^[A-Za-z0-9._-]+$ ]] ||
+      fail_operation
+    [[ -f "$t3_database" && ! -L "$t3_database" ]] ||
+      fail_operation
+
+    checkout_path="${organization_workspace}/${organization}/${repository_name}"
+
+    active_project_count() {
+      sqlite3 "$t3_database" <<SQL
+SELECT COUNT(*)
+FROM projection_projects
+WHERE workspace_root = '${checkout_path}'
+  AND deleted_at IS NULL;
+SQL
+    }
+
+    if ! registered_count="$(active_project_count 2>/dev/null)"; then
+      fail_operation
+    fi
+
+    case "$registered_count" in
+      1)
+        echo "Approved repository project is registered."
+        exit 0
+        ;;
+      0)
+        ;;
+      *)
+        fail_operation
+        ;;
+    esac
+
+    if ! HOME=/home/rivet \
+      T3CODE_HOME="$t3_home" \
+      PATH=/home/rivet/.local/bin:/usr/local/bin:/usr/bin:/bin \
+      "$t3_binary" project add \
+        "$checkout_path" \
+        --title "$repository_name" \
+        >/dev/null 2>&1; then
+      fail_operation
+    fi
+
+    if ! registered_count="$(active_project_count 2>/dev/null)"; then
+      fail_operation
+    fi
+
+    [[ "$registered_count" == "1" ]] ||
+      fail_operation
+
+    echo "Approved repository project is registered."
     ;;
   *)
     usage
