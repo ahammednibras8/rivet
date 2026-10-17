@@ -1,0 +1,7 @@
+---
+- name: Verify repository access role
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - repository_access
