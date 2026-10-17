@@ -18,21 +18,21 @@ expected_tasks='---
     group: rivet
     mode: "0750"
 
-- name: Maintain Rivet local command directory
-  ansible.builtin.file:
-    path: /home/rivet/.local/bin
-    state: directory
-    owner: rivet
-    group: rivet
-    mode: "0750"
-
 - name: Install repository approval command
   ansible.builtin.copy:
     src: rivet-repository-allowlist
-    dest: /home/rivet/.local/bin/rivet-repository-allowlist
+    dest: /usr/local/bin/rivet-repository-allowlist
     owner: root
-    group: rivet
-    mode: "0750"'
+    group: root
+    mode: "0755"
+
+- name: Install guarded repository command
+  ansible.builtin.copy:
+    src: rivet-repository
+    dest: /usr/local/bin/rivet-repository
+    owner: root
+    group: root
+    mode: "0755"'
 
 if [[ ! -f "$tasks_file" ]] || [[ "$(<"$tasks_file")" != "$expected_tasks" ]]; then
   echo "Repository access must keep its command and approval directory read-only to the service account" >&2

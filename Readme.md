@@ -314,6 +314,11 @@ defines exact-repository approval, immutable GitHub identity verification,
 private operator-controlled manifest installation, and fail-closed handling of
 repository or authorization changes without repository enumeration.
 
+The [organization repository onboarding runbook](docs/runbooks/onboard-organization-repository.md)
+defines the guarded clone, checkout validation, idempotent T3 registration,
+supervised private discovery, and redacted verification workflow for one
+allowlisted repository.
+
 The [laptop-independent operation runbook](docs/runbooks/verify-laptop-independent-operation.md)
 records and compares protected cloud identities around a real laptop-off,
 mobile-data verification without publishing host, environment, thread, or
