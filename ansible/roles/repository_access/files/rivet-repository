@@ -4,10 +4,17 @@ set -euo pipefail
 
 repository_manifest=/home/rivet/.config/rivet/repositories.json
 allowlist_validator=/usr/local/bin/rivet-repository-allowlist
+workspace_root=/home/rivet/workspaces
+organization_workspace=/home/rivet/workspaces/organizations
 
 usage() {
-  echo "Usage: rivet-repository verify" >&2
+  echo "Usage: rivet-repository {verify|clone}" >&2
   exit 2
+}
+
+fail_operation() {
+  echo "Repository operation failed." >&2
+  exit 1
 }
 
 if [[ $# -ne 1 ]]; then
@@ -18,7 +25,74 @@ case "$1" in
   verify)
     exec "$allowlist_validator" verify --manifest "$repository_manifest"
     ;;
-  *)
+  clone)
+    if ! "$allowlist_validator" \
+      verify \
+      --manifest "$repository_manifest" >/dev/null 2>&1; then
+      fail_operation
+    fi
+
+    repository_count="$(
+      jq -r '.repositories | length' "$repository_manifest"
+    )"
+    [[ "$repository_count" == "1" ]] || fail_operation
+
+    organization="$(
+      jq -r '.repositories[0].organization' "$repository_manifest"
+    )"
+    repository_name="$(
+      jq -r '.repositories[0].expected_name' "$repository_manifest"
+    )"
+    default_branch="$(
+      jq -r '.repositories[0].default_branch' "$repository_manifest"
+    )"
+
+    organization_directory="${organization_workspace}/${organization}"
+    checkout_path="${organization_directory}/${repository_name}"
+
+    if [[ -L "$workspace_root" ||
+          -L "$organization_workspace" ||
+          -L "$organization_directory" ||
+          -e "$checkout_path" ||
+          -L "$checkout_path" ]]; then
+      fail_operation
+    fi
+
+    install -d -m 0750 "$organization_directory"
+
+    staging_directory="$(
+      mktemp -d "${organization_directory}/.clone.XXXXXX"
+    )"
+
+    cleanup_clone() {
+      if [[ -n "${staging_directory:-}" &&
+            -d "$staging_directory" &&
+            ! -L "$staging_directory" ]]; then
+        rm -rf -- "$staging_directory"
+      fi
+    }
+
+    trap cleanup_clone EXIT
+
+    if ! gh repo clone \
+      "${organization}/${repository_name}" \
+      "${staging_directory}/checkout" \
+      -- \
+      --branch "$default_branch" \
+      --single-branch \
+      >/dev/null 2>&1; then
+      fail_operation
+    fi
+
+    [[ ! -e "$checkout_path" ]] || fail_operation
+    mv -- "${staging_directory}/checkout" "$checkout_path"
+    rmdir -- "$staging_directory"
+    staging_directory=
+    trap - EXIT
+
+    echo "Approved repository cloned."
+    ;;
+      *)
     usage
     ;;
 esac
