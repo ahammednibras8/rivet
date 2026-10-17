@@ -8,7 +8,7 @@ workspace_root=/home/rivet/workspaces
 organization_workspace=/home/rivet/workspaces/organizations
 
 usage() {
-  echo "Usage: rivet-repository {verify|clone}" >&2
+  echo "Usage: rivet-repository {verify|clone|status}" >&2
   exit 2
 }
 
@@ -92,7 +92,84 @@ case "$1" in
 
     echo "Approved repository cloned."
     ;;
-      *)
+  status)
+    if ! "$allowlist_validator" \
+      verify \
+      --manifest "$repository_manifest" >/dev/null 2>&1; then
+      fail_operation
+    fi
+
+    repository_count="$(
+      jq -r '.repositories | length' "$repository_manifest"
+    )"
+    [[ "$repository_count" == "1" ]] || fail_operation
+
+    organization="$(
+      jq -r '.repositories[0].organization' "$repository_manifest"
+    )"
+    repository_name="$(
+      jq -r '.repositories[0].expected_name' "$repository_manifest"
+    )"
+    default_branch="$(
+      jq -r '.repositories[0].default_branch' "$repository_manifest"
+    )"
+
+    organization_directory="${organization_workspace}/${organization}"
+    checkout_path="${organization_directory}/${repository_name}"
+    expected_remote="https://github.com/${organization}/${repository_name}.git"
+
+    [[ -d "$checkout_path" && ! -L "$checkout_path" ]] ||
+      fail_operation
+
+    if ! actual_remote="$(
+      git -C "$checkout_path" remote get-url origin 2>/dev/null
+    )"; then
+      fail_operation
+    fi
+
+    if ! actual_branch="$(
+      git -C "$checkout_path" symbolic-ref --quiet --short HEAD 2>/dev/null
+    )"; then
+      fail_operation
+    fi
+
+    if ! checkout_status="$(
+      git -C "$checkout_path" status --porcelain=v1 \
+        --untracked-files=all 2>/dev/null
+    )"; then
+      fail_operation
+    fi
+
+    [[ "$actual_remote" == "$expected_remote" ]] ||
+      fail_operation
+    [[ "$actual_branch" == "$default_branch" ]] ||
+      fail_operation
+    [[ -z "$checkout_status" ]] ||
+      fail_operation
+
+    current_user="$(id -un)"
+    current_group="$(id -gn)"
+
+    if ! find "$checkout_path" \
+      -maxdepth 0 \
+      -user "$current_user" \
+      -group "$current_group" \
+      -print |
+      grep -Fxq "$checkout_path"; then
+      fail_operation
+    fi
+
+    if find "$checkout_path" \
+      -xdev \
+      \( -perm -0020 -o -perm -0002 \) \
+      -print -quit |
+      grep -q .; then
+      fail_operation
+    fi
+
+    echo "Approved repository checkout is valid."
+    ;;
+  *)
     usage
     ;;
 esac

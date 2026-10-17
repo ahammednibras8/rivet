@@ -56,7 +56,9 @@ if [[ "$1 $2 $3" != "repo clone example-organization/example-repository" ]]; the
   echo "Unexpected clone target" >&2
   exit 1
 fi
-mkdir -p "$4"
+git init --quiet --initial-branch=main "$4"
+git -C "$4" remote add origin \
+  https://github.com/example-organization/example-repository.git
 SH
 chmod +x "$fake_bin/gh"
 
@@ -107,6 +109,60 @@ if [[ "$clone_call" != "${expected_clone_prefix}"*"/checkout -- --branch main --
   echo "The clone target and default branch must come only from the approved entry" >&2
   exit 1
 fi
+
+status_output="$(
+  PATH="${fake_bin}:$PATH" \
+    RIVET_TEST_CALLS="$calls" \
+    "$test_command" status
+)"
+
+if [[ "$status_output" != "Approved repository checkout is valid." ]]; then
+  echo "Repository status must return only its generic success result" >&2
+  exit 1
+fi
+
+git -C "$expected_checkout" remote set-url origin \
+  https://github.com/example-organization/different-repository.git
+
+if PATH="${fake_bin}:$PATH" \
+  RIVET_TEST_CALLS="$calls" \
+  "$test_command" status >/dev/null 2>&1; then
+  echo "Repository status accepted a mismatched remote" >&2
+  exit 1
+fi
+
+git -C "$expected_checkout" remote set-url origin \
+  https://github.com/example-organization/example-repository.git
+touch "${expected_checkout}/untracked-file"
+
+if PATH="${fake_bin}:$PATH" \
+  RIVET_TEST_CALLS="$calls" \
+  "$test_command" status >/dev/null 2>&1; then
+  echo "Repository status accepted a dirty checkout" >&2
+  exit 1
+fi
+
+rm -f "${expected_checkout}/untracked-file"
+git -C "$expected_checkout" symbolic-ref HEAD refs/heads/different-branch
+
+if PATH="${fake_bin}:$PATH" \
+  RIVET_TEST_CALLS="$calls" \
+  "$test_command" status >/dev/null 2>&1; then
+  echo "Repository status accepted a different branch" >&2
+  exit 1
+fi
+
+git -C "$expected_checkout" symbolic-ref HEAD refs/heads/main
+chmod g+w "$expected_checkout"
+
+if PATH="${fake_bin}:$PATH" \
+  RIVET_TEST_CALLS="$calls" \
+  "$test_command" status >/dev/null 2>&1; then
+  echo "Repository status accepted group-writable checkout state" >&2
+  exit 1
+fi
+
+chmod g-w "$expected_checkout"
 
 : >"$calls"
 RIVET_TEST_REJECT=true \
