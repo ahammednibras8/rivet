@@ -11,6 +11,7 @@
   ansible.builtin.getent:
     database: passwd
     key: rivet
+  when: not ansible_check_mode
 
 - name: Wait for the T3 Code user manager
   ansible.builtin.wait_for:
