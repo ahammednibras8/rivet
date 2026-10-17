@@ -168,6 +168,7 @@ case "$1" in
 
     if find "$checkout_path" \
       -xdev \
+      ! -type l \
       \( -perm -0020 -o -perm -0002 \) \
       -print -quit |
       grep -q .; then

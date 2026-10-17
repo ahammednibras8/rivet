@@ -59,6 +59,7 @@ fi
 git init --quiet --initial-branch=main "$4"
 git -C "$4" remote add origin \
   https://github.com/example-organization/example-repository.git
+ln -s objects "$4/.git/repository-test-link"
 chmod g+w "$4"
 SH
 chmod +x "$fake_bin/gh"
@@ -111,7 +112,7 @@ if [[ "$clone_call" != "${expected_clone_prefix}"*"/checkout -- --branch main --
   exit 1
 fi
 
-if find "$expected_checkout" -xdev \
+if find "$expected_checkout" -xdev ! -type l \
   \( -perm -0020 -o -perm -0002 \) -print -quit |
   grep -q .; then
   echo "Repository clone retained group-writable or world-writable state" >&2
@@ -171,6 +172,11 @@ if PATH="${fake_bin}:$PATH" \
 fi
 
 chmod g-w "$expected_checkout"
+
+if ! grep -Fq '! -type l' "$test_command"; then
+  echo "Repository status must ignore ineffective symlink permission bits" >&2
+  exit 1
+fi
 
 : >"$calls"
 RIVET_TEST_REJECT=true \
