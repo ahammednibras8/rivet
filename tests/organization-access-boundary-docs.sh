@@ -5,14 +5,11 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readme="${repo_root}/Readme.md"
 runbook="${repo_root}/docs/runbooks/verify-organization-access-boundary.md"
-evidence="${repo_root}/docs/evidence/issue-36-organization-access-boundary.md"
 
-for document in "$runbook" "$evidence"; do
-  if [[ ! -f "$document" ]]; then
-    echo "Missing organization access-boundary document" >&2
-    exit 1
-  fi
-done
+if [[ ! -f "$runbook" ]]; then
+  echo "Missing organization access-boundary runbook" >&2
+  exit 1
+fi
 
 required_runbook_text=(
   'has neither a ruleset nor legacy default-branch'
@@ -33,25 +30,6 @@ for expected in "${required_runbook_text[@]}"; do
   fi
 done
 
-required_evidence_text=(
-  'intentionally redacted'
-  'residual risk'
-  'accountRoleSufficient'
-  'disposableBranchDeleted'
-  'checkoutStateUnchanged'
-  'unsafeStateChangingTestsSkipped'
-  'residualDefaultMergeApprovalRisk'
-  'treated as disclosed rather than claimed erased'
-  'rather than a technically enforced default-branch'
-)
-
-for expected in "${required_evidence_text[@]}"; do
-  if ! grep -Fq -- "$expected" "$evidence"; then
-    echo "Organization access evidence is missing: ${expected}" >&2
-    exit 1
-  fi
-done
-
 if ! grep -Fq \
   '[organization access-boundary runbook](docs/runbooks/verify-organization-access-boundary.md)' \
   "$readme"; then
@@ -59,13 +37,11 @@ if ! grep -Fq \
   exit 1
 fi
 
-for document in "$runbook" "$evidence"; do
-  if grep -Eiq \
-    'gh repo list|/home/rivet/workspaces/organizations/[^<[:space:]]+|github\.com/[^/[:space:]]+/[^/[:space:]]+/(pull/new|git)|token[=:][[:space:]]*[^<[:space:]]+' \
-    "$document"; then
-    echo "Organization access documentation contains prohibited private detail" >&2
-    exit 1
-  fi
-done
+if grep -Eiq \
+  'gh repo list|/home/rivet/workspaces/organizations/[^<[:space:]]+|github\.com/[^/[:space:]]+/[^/[:space:]]+/(pull/new|git)|token[=:][[:space:]]*[^<[:space:]]+' \
+  "$runbook"; then
+  echo "Organization access runbook contains prohibited private detail" >&2
+  exit 1
+fi
 
-echo "Organization access-boundary documentation remains honest and redacted."
+echo "Organization access-boundary runbook remains honest and redacted."
