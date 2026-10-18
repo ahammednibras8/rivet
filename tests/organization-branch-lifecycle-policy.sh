@@ -20,6 +20,7 @@ required_text=(
   "git -C \"\$checkout\" commit-tree"
   "\"\${commit_sha}:refs/heads/\${branch}\""
   "\":refs/heads/\${branch}\""
+  '>/dev/null 2>&1'
   'defaultBranchUnchanged'
   'disposableBranchCreated'
   'disposableBranchDeleted'

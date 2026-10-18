@@ -92,7 +92,8 @@ commit_sha="$(
 )"
 
 git -C "$checkout" push --quiet origin \
-  "${commit_sha}:refs/heads/${branch}"
+  "${commit_sha}:refs/heads/${branch}" \
+  >/dev/null 2>&1
 pushed=true
 
 published_head="$(
@@ -106,7 +107,8 @@ if [[ "$published_head" != "$commit_sha" ]]; then
   exit 1
 fi
 
-git -C "$checkout" push --quiet origin ":refs/heads/${branch}"
+git -C "$checkout" push --quiet origin ":refs/heads/${branch}" \
+  >/dev/null 2>&1
 pushed=false
 
 if git -C "$checkout" ls-remote --exit-code --heads origin \
