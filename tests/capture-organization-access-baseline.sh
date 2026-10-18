@@ -87,7 +87,10 @@ metadata_boundary="$(
       notArchived: (.archived == false),
       pullAllowed: (.permissions.pull == true),
       pushAllowed: (.permissions.push == true),
-      adminDenied: (.permissions.admin == false)
+      accountRoleSufficient: (
+        .permissions.pull == true and
+        .permissions.push == true
+      )
     }
   ' <<<"$metadata"
 )"
@@ -147,8 +150,7 @@ jq -n \
     defaultHead: $default_head,
     permissions: {
       pull: true,
-      push: true,
-      admin: false
+      push: true
     }
   }' >"$temporary_baseline"
 
@@ -168,6 +170,6 @@ jq -n \
     checkoutClean: true,
     pullAllowed: true,
     issueBranchPushExpected: true,
-    adminDenied: true
+    accountRoleSufficient: true
   }'
 REMOTE

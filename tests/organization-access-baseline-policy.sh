@@ -18,7 +18,6 @@ required_text=(
   "git -C \"\$checkout\" fetch --prune origin"
   '.permissions.pull == true'
   '.permissions.push == true'
-  '.permissions.admin == false'
   'repositoryIdMatches'
   'ownerMatches'
   'nameMatches'
@@ -26,7 +25,7 @@ required_text=(
   'notArchived'
   'pullAllowed'
   'pushAllowed'
-  'adminDenied'
+  'accountRoleSufficient'
   'all(.[]; . == true)'
   'issue-36-before.json'
   'repositoryFingerprint'
