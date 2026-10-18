@@ -73,21 +73,28 @@ remote_ref="$(
     "repos/${organization}/${repository_name}/git/ref/heads/${default_branch}"
 )"
 
-if ! jq -e \
+metadata_boundary="$(
+  jq \
   --argjson repository_id "$repository_id" \
   --arg organization "$organization" \
   --arg repository_name "$repository_name" \
   --arg default_branch "$default_branch" '
-    .id == $repository_id and
-    .owner.login == $organization and
-    .name == $repository_name and
-    .default_branch == $default_branch and
-    .archived == false and
-    .permissions.pull == true and
-    .permissions.push == true and
-    .permissions.admin == false
-  ' <<<"$metadata" >/dev/null; then
+    {
+      repositoryIdMatches: (.id == $repository_id),
+      ownerMatches: (.owner.login == $organization),
+      nameMatches: (.name == $repository_name),
+      defaultBranchMatches: (.default_branch == $default_branch),
+      notArchived: (.archived == false),
+      pullAllowed: (.permissions.pull == true),
+      pushAllowed: (.permissions.push == true),
+      adminDenied: (.permissions.admin == false)
+    }
+  ' <<<"$metadata"
+)"
+
+if ! jq -e 'all(.[]; . == true)' <<<"$metadata_boundary" >/dev/null; then
   echo "The effective repository role does not match the pilot boundary." >&2
+  jq . <<<"$metadata_boundary" >&2
   exit 1
 fi
 
