@@ -319,6 +319,11 @@ defines the guarded clone, checkout validation, idempotent T3 registration,
 supervised private discovery, and redacted verification workflow for one
 allowlisted repository.
 
+The [organization access-boundary runbook](docs/runbooks/verify-organization-access-boundary.md)
+verifies authenticated fetch, disposable issue-branch publication, and safe
+read-only permission denials while explicitly recording the organization
+pilot's unresolved default-branch, merge, and approval risk.
+
 The [laptop-independent operation runbook](docs/runbooks/verify-laptop-independent-operation.md)
 records and compares protected cloud identities around a real laptop-off,
 mobile-data verification without publishing host, environment, thread, or
