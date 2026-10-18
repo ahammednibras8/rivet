@@ -9,6 +9,7 @@
       - git
       - jq
       - make
+      - python3-dev
       - sqlite3
       - ufw
       - unattended-upgrades
