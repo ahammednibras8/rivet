@@ -37,6 +37,8 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/repository-allowlist-docs.sh"
 "${repo_root}/tests/organization-repository-onboarding-policy.sh"
 "${repo_root}/tests/organization-repository-onboarding-docs.sh"
+"${repo_root}/tests/organization-access-baseline-policy.sh"
+"${repo_root}/tests/organization-branch-lifecycle-policy.sh"
 "${repo_root}/tests/ansible-t3-code-version-pin.sh"
 "${repo_root}/tests/ansible-t3-code-layout.sh"
 "${repo_root}/tests/ansible-t3-code-packages.sh"
