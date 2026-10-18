@@ -39,9 +39,26 @@ for command in gh git jq; do
   fi
 done
 
-if [[ ! -f "$baseline" ]] ||
-   ! /usr/local/bin/rivet-repository status >/dev/null 2>&1; then
+baseline_present=false
+if [[ -f "$baseline" ]]; then
+  baseline_present=true
+fi
+
+guarded_checkout_valid=false
+if /usr/local/bin/rivet-repository status >/dev/null 2>&1; then
+  guarded_checkout_valid=true
+fi
+
+if [[ "$baseline_present" != true || "$guarded_checkout_valid" != true ]]; then
   echo "The organization access baseline is unavailable or stale." >&2
+  jq -n \
+    --argjson baseline_present "$baseline_present" \
+    --argjson guarded_checkout_valid "$guarded_checkout_valid" '
+      {
+        baselinePresent: $baseline_present,
+        guardedCheckoutValid: $guarded_checkout_valid
+      }
+    ' >&2
   exit 1
 fi
 

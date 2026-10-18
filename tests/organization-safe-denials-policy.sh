@@ -15,6 +15,8 @@ bash -n "$verification"
 required_text=(
   'StrictHostKeyChecking=yes'
   'rivet-repository status'
+  'baselinePresent'
+  'guardedCheckoutValid'
   'rivet-repository verify example/repository'
   'actions/workflows?per_page=1'
   'actions/permissions/access'
