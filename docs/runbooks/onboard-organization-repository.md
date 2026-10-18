@@ -14,12 +14,38 @@ verification evidence.
 - The cloud workspace, T3 Connect, and Codex provider are operational.
 - The individual organization-approved GitHub credential is installed only on
   the cloud host.
+- Git delegates HTTPS authentication to the cloud host's GitHub CLI credential
+  by configuring `gh auth git-credential`; the repository remote never embeds
+  the token.
 - `/home/rivet/.config/rivet/repositories.json` contains exactly one current
   approval and is `root:rivet` with mode `0640`.
 - `/usr/local/bin/rivet-repository` and its validator are root-owned and not
   writable by the `rivet` service account.
 - The T3 user service applies `UMask=0027` so Git metadata and agent-created
   files do not inherit group-write or world access.
+
+After installing or replacing the approved credential, configure the Git
+credential helper as the `rivet` account. This is required again after a clean
+host replacement because the helper configuration is stored in that account's
+home directory:
+
+```bash
+sudo -u rivet env HOME=/home/rivet PATH=/usr/local/bin:/usr/bin:/bin \
+  gh auth setup-git --hostname github.com
+```
+
+Verify the helper without printing the credential or private repository
+metadata:
+
+```bash
+sudo -u rivet env HOME=/home/rivet PATH=/usr/local/bin:/usr/bin:/bin \
+  git config --global --get-all credential.https://github.com.helper |
+  grep -F 'gh auth git-credential'
+```
+
+Do not continue unless the helper command is present. GitHub CLI API access by
+itself is insufficient: guarded operations use plain Git for authenticated
+fetches and pushes.
 
 ## Guarded lifecycle
 

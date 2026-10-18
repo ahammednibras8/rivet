@@ -26,6 +26,23 @@ expected_access='---
     owner: rivet-admin
     group: rivet-admin
     mode: "0600"
+    validate: /usr/bin/ssh-keygen -l -f %s
+
+- name: Maintain Rivet service SSH directory
+  ansible.builtin.file:
+    path: /home/rivet/.ssh
+    state: directory
+    owner: rivet
+    group: rivet
+    mode: "0700"
+
+- name: Maintain operator key for Rivet service account
+  ansible.builtin.copy:
+    content: "{{ rivet_operator_ssh_public_key }}\n"
+    dest: /home/rivet/.ssh/authorized_keys
+    owner: rivet
+    group: rivet
+    mode: "0600"
     validate: /usr/bin/ssh-keygen -l -f %s'
 expected_validation='---
 - name: Validate the operator SSH public key value
@@ -76,4 +93,4 @@ for invalid_key_json in \
   fi
 done
 
-echo "The administrative SSH access policy accepts exactly one RSA public key."
+echo "The administrator and Rivet service SSH access policies accept exactly one RSA public key."
