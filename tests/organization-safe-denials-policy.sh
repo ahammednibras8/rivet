@@ -14,9 +14,13 @@ bash -n "$verification"
 
 required_text=(
   'StrictHostKeyChecking=yes'
-  'rivet-repository status'
-  'baselinePresent'
-  'guardedCheckoutValid'
+  'rivet-repository verify'
+  'checkout_state_before'
+  'checkout_state_after'
+  'branch_before'
+  'branch_after'
+  'head_before'
+  'head_after'
   'rivet-repository verify example/repository'
   'actions/workflows?per_page=1'
   'actions/permissions/access'
@@ -30,6 +34,7 @@ required_text=(
   'webhookAdministrationReadDenied'
   'deploymentReadDenied'
   'defaultBranchUnchanged'
+  'checkoutStateUnchanged'
   'unsafeStateChangingTestsSkipped'
   'residualDefaultMergeApprovalRisk'
   "chmod 0600 \"\$temporary_result\""

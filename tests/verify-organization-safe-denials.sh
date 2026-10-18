@@ -32,33 +32,16 @@ baseline="${state_directory}/issue-36-before.json"
 result="${state_directory}/issue-36-safe-denials.json"
 expected_usage='Usage: rivet-repository {verify|clone|status|register}'
 
-for command in gh git jq; do
+for command in gh git jq sha256sum; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "A required cloud permission-verification command is unavailable." >&2
     exit 1
   fi
 done
 
-baseline_present=false
-if [[ -f "$baseline" ]]; then
-  baseline_present=true
-fi
-
-guarded_checkout_valid=false
-if /usr/local/bin/rivet-repository status >/dev/null 2>&1; then
-  guarded_checkout_valid=true
-fi
-
-if [[ "$baseline_present" != true || "$guarded_checkout_valid" != true ]]; then
-  echo "The organization access baseline is unavailable or stale." >&2
-  jq -n \
-    --argjson baseline_present "$baseline_present" \
-    --argjson guarded_checkout_valid "$guarded_checkout_valid" '
-      {
-        baselinePresent: $baseline_present,
-        guardedCheckoutValid: $guarded_checkout_valid
-      }
-    ' >&2
+if [[ ! -f "$baseline" ]] ||
+   ! /usr/local/bin/rivet-repository verify >/dev/null 2>&1; then
+  echo "The organization access baseline or approval is unavailable." >&2
   exit 1
 fi
 
@@ -70,6 +53,45 @@ baseline_default_head="$(jq -er '.defaultHead' "$baseline")"
 
 [[ "$organization" =~ ^[A-Za-z0-9-]+$ ]] || exit 1
 [[ "$repository_name" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+
+if [[ ! -d "$checkout" || -L "$checkout" ]]; then
+  echo "The approved checkout is unavailable." >&2
+  exit 1
+fi
+
+expected_remote="https://github.com/${organization}/${repository_name}.git"
+actual_remote="$(git -C "$checkout" remote get-url origin 2>/dev/null)"
+current_user="$(id -un)"
+current_group="$(id -gn)"
+
+if [[ "$actual_remote" != "$expected_remote" ]] ||
+   ! find "$checkout" -maxdepth 0 \
+     -user "$current_user" -group "$current_group" -print |
+     grep -Fxq "$checkout" ||
+   find "$checkout" -xdev ! -type l \
+     \( -perm -0020 -o -perm -0002 \) -print -quit |
+     grep -q .; then
+  echo "The approved checkout identity or permissions are invalid." >&2
+  exit 1
+fi
+
+remote_default_before="$(
+  git -C "$checkout" ls-remote --exit-code origin \
+    "refs/heads/${default_branch}" |
+    awk 'NR == 1 {print $1}'
+)"
+checkout_state_before="$(
+  git -C "$checkout" status --porcelain=v1 -z --untracked-files=all |
+    sha256sum |
+    awk '{print $1}'
+)"
+branch_before="$(git -C "$checkout" symbolic-ref --quiet HEAD)"
+head_before="$(git -C "$checkout" rev-parse HEAD)"
+
+if [[ "$remote_default_before" != "$baseline_default_head" ]]; then
+  echo "The approved default branch changed after baseline capture." >&2
+  exit 1
+fi
 
 set +e
 unlisted_output="$(
@@ -123,12 +145,18 @@ remote_default_after="$(
     "refs/heads/${default_branch}" |
     awk 'NR == 1 {print $1}'
 )"
-checkout_status="$(
-  git -C "$checkout" status --porcelain=v1 --untracked-files=all
+checkout_state_after="$(
+  git -C "$checkout" status --porcelain=v1 -z --untracked-files=all |
+    sha256sum |
+    awk '{print $1}'
 )"
+branch_after="$(git -C "$checkout" symbolic-ref --quiet HEAD)"
+head_after="$(git -C "$checkout" rev-parse HEAD)"
 
 if [[ "$remote_default_after" != "$baseline_default_head" ||
-      -n "$checkout_status" ]]; then
+      "$checkout_state_after" != "$checkout_state_before" ||
+      "$branch_after" != "$branch_before" ||
+      "$head_after" != "$head_before" ]]; then
   echo "The default branch or approved checkout changed during safe probes." >&2
   exit 1
 fi
@@ -148,7 +176,7 @@ jq -n \
       webhookAdministrationReadDenied: true,
       deploymentReadDenied: true,
       defaultBranchUnchanged: true,
-      checkoutClean: true,
+      checkoutStateUnchanged: true,
       defaultPushNotExercised: true,
       mergeNotExercised: true,
       approvalNotExercised: true
@@ -169,7 +197,7 @@ jq -n \
       webhookAdministrationReadDenied: true,
       deploymentReadDenied: true,
       defaultBranchUnchanged: true,
-      checkoutClean: true,
+      checkoutStateUnchanged: true,
       unsafeStateChangingTestsSkipped: true,
       residualDefaultMergeApprovalRisk: true
     }
