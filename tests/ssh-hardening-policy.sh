@@ -10,7 +10,7 @@ KbdInteractiveAuthentication no
 PubkeyAuthentication yes
 AuthenticationMethods publickey
 PermitEmptyPasswords no
-AllowUsers rivet-admin
+AllowUsers rivet-admin rivet
 DisableForwarding yes
 MaxAuthTries 3
 LoginGraceTime 30'
@@ -46,6 +46,7 @@ for expected_setting in \
   'authenticationmethods publickey' \
   'permitemptypasswords no' \
   'allowusers rivet-admin' \
+  'allowusers rivet' \
   'disableforwarding yes' \
   'maxauthtries 3' \
   'logingracetime 30'; do
