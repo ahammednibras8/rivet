@@ -3,6 +3,7 @@
   ansible.builtin.apt:
     name:
       - acl
+      - build-essential
       - ca-certificates
       - curl
       - git
