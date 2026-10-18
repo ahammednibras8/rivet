@@ -24,6 +24,10 @@ required_runbook_text=(
   'findings remain private'
   'emits only booleans and counts'
   'UMask=0027'
+  'gh auth setup-git --hostname github.com'
+  'credential.https://github.com.helper'
+  'GitHub CLI API access by'
+  'itself is insufficient'
 )
 
 for expected in "${required_runbook_text[@]}"; do
