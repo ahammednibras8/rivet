@@ -20,7 +20,7 @@ Those capabilities require a later issue and an explicit credential review.
 | GitHub permission | Repository contents, read-only |
 | GitHub client | GitHub CLI `2.102.0`, pinned and checksum-verified by Ansible |
 | Agent provider | T3-managed Codex connected to `ChatGPT Personal` |
-| Managed Codex version | `0.156.1`, selected by the reviewed T3 Code `0.0.45` release |
+| Managed Codex version | Read from T3's `active.json`; it must satisfy the minimum documented by the reviewed T3 Code release |
 | First thread mode | Current checkout, Supervised permissions, read-only task |
 
 “Cloud-owned” means the checkout used by T3, its thread database, managed
@@ -219,17 +219,18 @@ the provider credential in its private server secret store.
 Verify only the installation record, executable version, and storage modes:
 
 ```bash
-sudo -u rivet jq -r .version /home/rivet/.t3/tools/codex/active.json
+codex_version="$(sudo -u rivet jq -er .version /home/rivet/.t3/tools/codex/active.json)"
 sudo -u rivet \
-  /home/rivet/.t3/tools/codex/0.156.1/bin/codex --version
+  "/home/rivet/.t3/tools/codex/${codex_version}/bin/codex" --version
 stat -c '%U:%G %a %n' /home/rivet/.t3/userdata/secrets
 find /home/rivet/.t3/userdata/secrets \
   -maxdepth 1 -type f -printf '%m\n' |
   sort -u
 ```
 
-Require managed version `0.156.1`, directory mode `0700`, and only `0600`
-secret-file modes. Never list, read, hash, copy, or publish secret contents.
+Require a managed version accepted by the pinned T3 Code release, directory
+mode `0700`, and only `0600` secret-file modes.
+Never list, read, hash, copy, or publish secret contents.
 
 ## Start the supervised mobile thread
 
@@ -289,7 +290,7 @@ from T3's secret store.
 
 - [GitHub fine-grained personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 - [GitHub CLI authentication](https://cli.github.com/manual/gh_auth_login)
-- [T3 Code 0.0.45 Codex provider](https://github.com/pingdotgg/t3code/blob/v0.0.45/docs/user/providers-codex.md)
-- [T3 Code 0.0.45 permission modes](https://github.com/pingdotgg/t3code/blob/v0.0.45/docs/user/permission-modes.md)
-- [T3 Code 0.0.45 thread workflow](https://github.com/pingdotgg/t3code/blob/v0.0.45/docs/user/thread-sidebar.md)
+- [T3 Code 0.1.0 Codex provider](https://github.com/pingdotgg/t3code/blob/v0.1.0/docs/user/providers-codex.md)
+- [T3 Code 0.1.0 permission modes](https://github.com/pingdotgg/t3code/blob/v0.1.0/docs/user/permission-modes.md)
+- [T3 Code 0.1.0 thread workflow](https://github.com/pingdotgg/t3code/blob/v0.1.0/docs/user/thread-sidebar.md)
 - [OpenAI Codex authentication](https://learn.chatgpt.com/docs/auth)

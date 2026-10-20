@@ -5,7 +5,7 @@ authorization, service inspection, mobile access, revocation, reauthorization,
 deregistration, and failure isolation. It does not expose T3 Code directly,
 enable Tailscale as a T3 client route, or install agent providers.
 
-Rivet currently supports the reviewed T3 Code `0.0.45` Linux x64 release. The
+Rivet currently supports the reviewed T3 Code `0.1.0` Linux x64 release. The
 Ansible role owns installation and service configuration. Do not update the
 binary or edit the generated systemd unit manually.
 
@@ -232,6 +232,6 @@ identifiers, trace IDs, process IDs, and unrelated agent or repository logs.
 ## Authoritative references
 
 - [ADR-0003: T3 Connect remote access](../adr/0003-use-t3-connect-for-phase-1-remote-access.md)
-- [T3 Code 0.0.45 remote-access documentation](https://github.com/pingdotgg/t3code/blob/v0.0.45/docs/user/remote-access.md)
-- [T3 Connect architecture](https://github.com/pingdotgg/t3code/blob/v0.0.45/docs/internals/t3-connect.md)
+- [T3 Code 0.1.0 remote-access documentation](https://github.com/pingdotgg/t3code/blob/v0.1.0/docs/user/remote-access.md)
+- [T3 Connect architecture](https://github.com/pingdotgg/t3code/blob/v0.1.0/docs/internals/t3-connect.md)
 - [Clerk native user-profile active sessions](https://clerk.com/docs/reference/expo/native-components/user-profile-view)
