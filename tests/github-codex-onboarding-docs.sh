@@ -26,7 +26,7 @@ required_runbook_text=(
   '/home/rivet/workspaces/rivet'
   "HTTP \`403\` with \`Resource not accessible by personal access token\`"
   "T3-managed Codex connected to \`ChatGPT Personal\`"
-  "Managed Codex version | \`0.156.1\`"
+  "Managed Codex version | Read from T3's \`active.json\`"
   '**Current checkout**, not **New worktree**'
   '**Supervised** permissions'
   'Human review remains mandatory before every generated pull request is'
