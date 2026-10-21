@@ -38,11 +38,13 @@ expected_handlers='---
       - /etc/apparmor.d/t3-chrome-headless-shell
   changed_when: false
   listen: Reload T3 browser AppArmor profile'
-expected_profile='# Managed by Ansible for T3 Code'"'"'s headless browser sandbox.
+expected_profile='# Written by `t3 browser setup`: lets T3 Code'"'"'s headless browser use Chrome'"'"'s sandbox.
 abi <abi/4.0>,
 include <tunables/global>
+
 profile t3-chrome-headless-shell /**/tools/chrome-headless-shell/*/*/chrome-headless-shell flags=(unconfined) {
   userns,
+
   include if exists <local/t3-chrome-headless-shell>
 }'
 
@@ -87,12 +89,6 @@ if grep -Eiq -- 'become_user:[[:space:]]*rivet|sudo|docker' \
   exit 1
 fi
 
-/usr/sbin/apparmor_parser \
-  --skip-kernel-load \
-  --skip-cache \
-  --quiet \
-  "$profile_file"
-
 required_evidence_text=(
   'Ubuntu 24.04 AMD64'
   'Chrome Headless Shell 154.0.8037.92'
@@ -123,5 +119,26 @@ ANSIBLE_CONFIG="$config_file" \
     --inventory 'localhost,' \
     --syntax-check \
     "$playbook"
+
+operating_system="$(uname -s)"
+case "$operating_system" in
+  Linux)
+    if [[ ! -x /usr/sbin/apparmor_parser ]]; then
+      echo "Executable /usr/sbin/apparmor_parser is required on Linux" >&2
+      exit 1
+    fi
+    /usr/sbin/apparmor_parser \
+      --skip-kernel-load \
+      --skip-cache \
+      --quiet \
+      "$profile_file"
+    ;;
+  Darwin)
+    ;;
+  *)
+    echo "Unsupported operating system for T3 browser runtime verification: ${operating_system}" >&2
+    exit 1
+    ;;
+esac
 
 echo "T3 browser packages, sandbox, ownership, idempotency, and service boundary are enforced."

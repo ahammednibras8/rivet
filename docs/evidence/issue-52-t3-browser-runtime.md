@@ -39,7 +39,8 @@ packages. Ubuntu package metadata reports AMD64 candidates for every package.
 
 The AppArmor user-namespace restriction is enabled, AppArmor is active, and
 the required T3 browser profile was absent at diagnosis time. The managed
-profile grants `userns` only to T3's Chrome Headless Shell path pattern.
+profile matches T3 Code v0.1.0's official browser-setup profile exactly and
+grants `userns` only to T3's Chrome Headless Shell path pattern.
 
 ## Reproducible correction
 
