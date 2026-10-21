@@ -5,6 +5,9 @@
 - name: Install T3 Code runtime dependencies
   ansible.builtin.import_tasks: packages.yml
 
+- name: Allow the T3 browser sandbox
+  ansible.builtin.import_tasks: browser.yml
+
 - name: Download the reviewed T3 Code release
   ansible.builtin.import_tasks: install.yml
 
