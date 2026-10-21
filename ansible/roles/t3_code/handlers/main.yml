@@ -1,0 +1,9 @@
+---
+- name: Reload the T3 browser AppArmor profile
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/apparmor_parser
+      - --replace
+      - /etc/apparmor.d/t3-chrome-headless-shell
+  changed_when: false
+  listen: Reload T3 browser AppArmor profile

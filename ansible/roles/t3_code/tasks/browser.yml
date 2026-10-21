@@ -1,0 +1,10 @@
+---
+- name: Install the T3 browser AppArmor profile
+  ansible.builtin.copy:
+    src: t3-chrome-headless-shell
+    dest: /etc/apparmor.d/t3-chrome-headless-shell
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/apparmor_parser --skip-kernel-load --skip-cache --quiet %s
+  notify: Reload T3 browser AppArmor profile

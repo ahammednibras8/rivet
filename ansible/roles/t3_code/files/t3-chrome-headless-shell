@@ -1,0 +1,7 @@
+# Managed by Ansible for T3 Code's headless browser sandbox.
+abi <abi/4.0>,
+include <tunables/global>
+profile t3-chrome-headless-shell /**/tools/chrome-headless-shell/*/*/chrome-headless-shell flags=(unconfined) {
+  userns,
+  include if exists <local/t3-chrome-headless-shell>
+}
