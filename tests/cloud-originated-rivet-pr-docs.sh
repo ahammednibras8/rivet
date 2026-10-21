@@ -10,6 +10,8 @@ if [[ ! -f "$evidence" ]]; then
   exit 1
 fi
 
+# The backticks are required literal Markdown delimiters in the evidence text.
+# shellcheck disable=SC2016
 required_evidence_text=(
   'Branch `feature/49-cloud-originated-rivet-pr` was published successfully.'
   'Initial commit `b8b58c4` changed only'
@@ -38,6 +40,8 @@ if grep -Eiq -- \
   exit 1
 fi
 
+# The backticks are required literal Markdown delimiters in this grep expression.
+# shellcheck disable=SC2016
 if grep -Eiq -- \
   'organization.*`[^`[:space:]]+/[^`[:space:]]+`|organization.*(/home/|github\.com)' \
   "$evidence"; then

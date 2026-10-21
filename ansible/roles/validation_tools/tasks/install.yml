@@ -100,7 +100,7 @@
 - name: Read installed OpenTofu version as rivet
   ansible.builtin.command:
     argv:
-      - "/opt/rivet/validation-tools/tofu/{{ validation_tools_tofu_version }}/tofu"
+      - /usr/local/bin/tofu
       - version
   become: true
   become_user: rivet
@@ -113,14 +113,14 @@
 - name: Verify installed OpenTofu version
   ansible.builtin.assert:
     that:
-      - validation_tools_tofu_version in validation_tools_tofu_installed_version.stdout
+      - '(validation_tools_tofu_installed_version.stdout_lines | first) == ("OpenTofu v" ~ validation_tools_tofu_version)'
     fail_msg: "Installed OpenTofu does not match reviewed version {{ validation_tools_tofu_version }}"
   when: not ansible_check_mode
 
 - name: Read installed ShellCheck version as rivet
   ansible.builtin.command:
     argv:
-      - "/opt/rivet/validation-tools/shellcheck/{{ validation_tools_shellcheck_version }}/shellcheck"
+      - /usr/local/bin/shellcheck
       - --version
   become: true
   become_user: rivet
@@ -133,14 +133,14 @@
 - name: Verify installed ShellCheck version
   ansible.builtin.assert:
     that:
-      - validation_tools_shellcheck_version in validation_tools_shellcheck_installed_version.stdout
+      - '("version: " ~ validation_tools_shellcheck_version) in validation_tools_shellcheck_installed_version.stdout_lines'
     fail_msg: "Installed ShellCheck does not match reviewed version {{ validation_tools_shellcheck_version }}"
   when: not ansible_check_mode
 
 - name: Read installed Gitleaks version as rivet
   ansible.builtin.command:
     argv:
-      - "/opt/rivet/validation-tools/gitleaks/{{ validation_tools_gitleaks_version }}/gitleaks"
+      - /usr/local/bin/gitleaks
       - version
   become: true
   become_user: rivet
@@ -153,6 +153,6 @@
 - name: Verify installed Gitleaks version
   ansible.builtin.assert:
     that:
-      - validation_tools_gitleaks_version in validation_tools_gitleaks_installed_version.stdout
+      - (validation_tools_gitleaks_installed_version.stdout | trim) == validation_tools_gitleaks_version
     fail_msg: "Installed Gitleaks does not match reviewed version {{ validation_tools_gitleaks_version }}"
   when: not ansible_check_mode

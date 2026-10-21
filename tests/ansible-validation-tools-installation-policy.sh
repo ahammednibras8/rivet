@@ -77,12 +77,15 @@ required_install_fragments=(
   '      dest: /usr/local/bin/shellcheck'
   '      dest: /usr/local/bin/gitleaks'
   '- name: Read installed OpenTofu version as rivet'
+  '      - /usr/local/bin/tofu'
   '- name: Read installed ShellCheck version as rivet'
+  '      - /usr/local/bin/shellcheck'
   '- name: Read installed Gitleaks version as rivet'
+  '      - /usr/local/bin/gitleaks'
   '  become_user: rivet'
-  '      - validation_tools_tofu_version in validation_tools_tofu_installed_version.stdout'
-  '      - validation_tools_shellcheck_version in validation_tools_shellcheck_installed_version.stdout'
-  '      - validation_tools_gitleaks_version in validation_tools_gitleaks_installed_version.stdout'
+  "      - '(validation_tools_tofu_installed_version.stdout_lines | first) == (\"OpenTofu v\" ~ validation_tools_tofu_version)'"
+  "      - '(\"version: \" ~ validation_tools_shellcheck_version) in validation_tools_shellcheck_installed_version.stdout_lines'"
+  '      - (validation_tools_gitleaks_installed_version.stdout | trim) == validation_tools_gitleaks_version'
 )
 
 for fragment in "${required_install_fragments[@]}"; do

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readme="${repo_root}/Readme.md"
+readme="${repo_root}/README.md"
 pull_request_template="${repo_root}/.github/pull_request_template.md"
 
 required_readme_text=(

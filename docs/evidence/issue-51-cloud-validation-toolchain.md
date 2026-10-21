@@ -42,9 +42,9 @@ installed in root-owned, versioned directories below
 
 Only `tofu`, `shellcheck`, and `gitleaks` are linked into `/usr/local/bin`.
 Their files are owned by `root:root`, use mode `0755`, and are not writable by
-the `rivet` account. That account executes each installed binary for the
-runtime version assertions but receives no sudo access, Docker-group
-membership, writable installation path, or credential.
+the `rivet` account. That account executes each public reviewed link and
+verifies the exact observed version-output contract, but receives no sudo
+access, Docker-group membership, writable installation path, or credential.
 
 Downloads, extraction, executable enforcement, links, and runtime version
 assertions are skipped in Ansible check mode because their source artifacts
@@ -55,23 +55,25 @@ may not exist yet.
 The following checks passed:
 
 - Bash syntax for every changed shell script;
-- ShellCheck 0.11.0 for every changed shell script;
+- ShellCheck 0.11.0 for every tracked shell script;
 - the focused release-pin and installation-policy tests, including Ansible
   syntax validation;
 - the system package, service-account, Ubuntu 24.04 platform, and site
   composition tests;
+- every README documentation test on the case-sensitive Linux checkout after
+  normalizing the tracked root document to `README.md`;
 - both OpenTofu configuration validation runs and all six OpenTofu tests when
   using the checksum-verified temporary OpenTofu binary and an isolated
-  provider data directory.
+  provider data directory; and
+- the complete cloud-foundation static verification suite with Ansible Core
+  2.21.3 and `community.general` 13.4.0 installed in isolated temporary paths.
 
-The full cloud-foundation suite was attempted with all three checksum-verified
-temporary binaries in `PATH`, without system-wide installation. It stopped at
-pre-existing ShellCheck `SC2016` findings in
-`tests/ansible-t3-code-browser-runtime.sh` and
-`tests/cloud-originated-rivet-pr-docs.sh`; those files are outside this change.
-The final cloud suite is therefore not claimed as passing before merge.
+The complete suite used all three checksum-verified temporary binaries in
+`PATH` without system-wide installation. Literal Markdown and AppArmor
+backticks have command-scoped ShellCheck suppressions, preserving the required
+text without executing it.
 
 Privileged Ansible convergence, installed-version verification on the cloud
-host, a second idempotency convergence, and the final cloud-foundation suite
-remain explicit post-merge gates. No deployment or privileged convergence was
+host, a second idempotency convergence, and the final cloud-host suite remain
+explicit post-merge gates. No deployment or privileged convergence was
 performed for this change.
