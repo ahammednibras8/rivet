@@ -1,0 +1,9 @@
+---
+- name: Install validation tool archive prerequisites
+  ansible.builtin.import_tasks: packages.yml
+
+- name: Prepare the validation tool filesystem
+  ansible.builtin.import_tasks: layout.yml
+
+- name: Install reviewed validation tool releases
+  ansible.builtin.import_tasks: install.yml

@@ -1,0 +1,6 @@
+---
+- name: Verify the validation tools role
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: validation_tools

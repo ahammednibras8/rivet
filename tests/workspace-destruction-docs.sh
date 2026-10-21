@@ -3,7 +3,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readme="${repo_root}/Readme.md"
+readme="${repo_root}/README.md"
 runbook="${repo_root}/docs/runbooks/destroy-workspace-safely.md"
 evidence="${repo_root}/docs/evidence/issue-14-safe-workspace-destruction.md"
 

@@ -38,6 +38,8 @@ expected_handlers='---
       - /etc/apparmor.d/t3-chrome-headless-shell
   changed_when: false
   listen: Reload T3 browser AppArmor profile'
+# The backticks are required literal AppArmor comment text.
+# shellcheck disable=SC2016
 expected_profile='# Written by `t3 browser setup`: lets T3 Code'"'"'s headless browser use Chrome'"'"'s sandbox.
 abi <abi/4.0>,
 include <tunables/global>

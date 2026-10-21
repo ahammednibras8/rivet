@@ -27,6 +27,7 @@ expected_playbook='---
     - role: tailscale_admin
     - role: host_firewall
     - role: github_cli
+    - role: validation_tools
     - role: repository_access
     - role: t3_code'
 
