@@ -1,0 +1,158 @@
+---
+- name: Download reviewed OpenTofu release
+  ansible.builtin.get_url:
+    url: "{{ validation_tools_tofu_download_url }}"
+    dest: "/var/cache/rivet/validation-tools/{{ validation_tools_tofu_archive }}"
+    checksum: "sha256:{{ validation_tools_tofu_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not ansible_check_mode
+
+- name: Download reviewed ShellCheck release
+  ansible.builtin.get_url:
+    url: "{{ validation_tools_shellcheck_download_url }}"
+    dest: "/var/cache/rivet/validation-tools/{{ validation_tools_shellcheck_archive }}"
+    checksum: "sha256:{{ validation_tools_shellcheck_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not ansible_check_mode
+
+- name: Download reviewed Gitleaks release
+  ansible.builtin.get_url:
+    url: "{{ validation_tools_gitleaks_download_url }}"
+    dest: "/var/cache/rivet/validation-tools/{{ validation_tools_gitleaks_archive }}"
+    checksum: "sha256:{{ validation_tools_gitleaks_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not ansible_check_mode
+
+- name: Extract reviewed OpenTofu executable
+  ansible.builtin.unarchive:
+    src: "/var/cache/rivet/validation-tools/{{ validation_tools_tofu_archive }}"
+    dest: "/opt/rivet/validation-tools/tofu/{{ validation_tools_tofu_version }}"
+    remote_src: true
+    owner: root
+    group: root
+    include:
+      - tofu
+    creates: "/opt/rivet/validation-tools/tofu/{{ validation_tools_tofu_version }}/tofu"
+  when: not ansible_check_mode
+
+- name: Extract reviewed ShellCheck executable
+  ansible.builtin.unarchive:
+    src: "/var/cache/rivet/validation-tools/{{ validation_tools_shellcheck_archive }}"
+    dest: "/opt/rivet/validation-tools/shellcheck/{{ validation_tools_shellcheck_version }}"
+    remote_src: true
+    owner: root
+    group: root
+    include:
+      - "shellcheck-v{{ validation_tools_shellcheck_version }}/shellcheck"
+    extra_opts:
+      - --strip-components=1
+    creates: "/opt/rivet/validation-tools/shellcheck/{{ validation_tools_shellcheck_version }}/shellcheck"
+  when: not ansible_check_mode
+
+- name: Extract reviewed Gitleaks executable
+  ansible.builtin.unarchive:
+    src: "/var/cache/rivet/validation-tools/{{ validation_tools_gitleaks_archive }}"
+    dest: "/opt/rivet/validation-tools/gitleaks/{{ validation_tools_gitleaks_version }}"
+    remote_src: true
+    owner: root
+    group: root
+    include:
+      - gitleaks
+    creates: "/opt/rivet/validation-tools/gitleaks/{{ validation_tools_gitleaks_version }}/gitleaks"
+  when: not ansible_check_mode
+
+- name: Protect installed validation tool executables
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: file
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "/opt/rivet/validation-tools/tofu/{{ validation_tools_tofu_version }}/tofu"
+    - "/opt/rivet/validation-tools/shellcheck/{{ validation_tools_shellcheck_version }}/shellcheck"
+    - "/opt/rivet/validation-tools/gitleaks/{{ validation_tools_gitleaks_version }}/gitleaks"
+  when: not ansible_check_mode
+
+- name: Link reviewed validation tool executables
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+    owner: root
+    group: root
+    force: true
+  loop:
+    - src: "/opt/rivet/validation-tools/tofu/{{ validation_tools_tofu_version }}/tofu"
+      dest: /usr/local/bin/tofu
+    - src: "/opt/rivet/validation-tools/shellcheck/{{ validation_tools_shellcheck_version }}/shellcheck"
+      dest: /usr/local/bin/shellcheck
+    - src: "/opt/rivet/validation-tools/gitleaks/{{ validation_tools_gitleaks_version }}/gitleaks"
+      dest: /usr/local/bin/gitleaks
+  when: not ansible_check_mode
+
+- name: Read installed OpenTofu version as rivet
+  ansible.builtin.command:
+    argv:
+      - "/opt/rivet/validation-tools/tofu/{{ validation_tools_tofu_version }}/tofu"
+      - version
+  become: true
+  become_user: rivet
+  environment:
+    HOME: /home/rivet
+  register: validation_tools_tofu_installed_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify installed OpenTofu version
+  ansible.builtin.assert:
+    that:
+      - validation_tools_tofu_version in validation_tools_tofu_installed_version.stdout
+    fail_msg: "Installed OpenTofu does not match reviewed version {{ validation_tools_tofu_version }}"
+  when: not ansible_check_mode
+
+- name: Read installed ShellCheck version as rivet
+  ansible.builtin.command:
+    argv:
+      - "/opt/rivet/validation-tools/shellcheck/{{ validation_tools_shellcheck_version }}/shellcheck"
+      - --version
+  become: true
+  become_user: rivet
+  environment:
+    HOME: /home/rivet
+  register: validation_tools_shellcheck_installed_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify installed ShellCheck version
+  ansible.builtin.assert:
+    that:
+      - validation_tools_shellcheck_version in validation_tools_shellcheck_installed_version.stdout
+    fail_msg: "Installed ShellCheck does not match reviewed version {{ validation_tools_shellcheck_version }}"
+  when: not ansible_check_mode
+
+- name: Read installed Gitleaks version as rivet
+  ansible.builtin.command:
+    argv:
+      - "/opt/rivet/validation-tools/gitleaks/{{ validation_tools_gitleaks_version }}/gitleaks"
+      - version
+  become: true
+  become_user: rivet
+  environment:
+    HOME: /home/rivet
+  register: validation_tools_gitleaks_installed_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify installed Gitleaks version
+  ansible.builtin.assert:
+    that:
+      - validation_tools_gitleaks_version in validation_tools_gitleaks_installed_version.stdout
+    fail_msg: "Installed Gitleaks does not match reviewed version {{ validation_tools_gitleaks_version }}"
+  when: not ansible_check_mode

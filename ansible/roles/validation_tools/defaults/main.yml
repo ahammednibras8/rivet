@@ -1,0 +1,21 @@
+---
+validation_tools_tofu_version: "1.13.1"
+validation_tools_tofu_archive: >-
+  tofu_{{ validation_tools_tofu_version }}_linux_amd64.zip
+validation_tools_tofu_download_url: >-
+  https://github.com/opentofu/opentofu/releases/download/v{{ validation_tools_tofu_version }}/{{ validation_tools_tofu_archive }}
+validation_tools_tofu_sha256: "8ccbc6f8ee21d2827715f3c6e08a9b3e0209b1e62057c05067ef117e047c1a80"
+
+validation_tools_shellcheck_version: "0.11.0"
+validation_tools_shellcheck_archive: >-
+  shellcheck-v{{ validation_tools_shellcheck_version }}.linux.x86_64.tar.xz
+validation_tools_shellcheck_download_url: >-
+  https://github.com/koalaman/shellcheck/releases/download/v{{ validation_tools_shellcheck_version }}/{{ validation_tools_shellcheck_archive }}
+validation_tools_shellcheck_sha256: "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
+
+validation_tools_gitleaks_version: "8.30.1"
+validation_tools_gitleaks_archive: >-
+  gitleaks_{{ validation_tools_gitleaks_version }}_linux_x64.tar.gz
+validation_tools_gitleaks_download_url: >-
+  https://github.com/gitleaks/gitleaks/releases/download/v{{ validation_tools_gitleaks_version }}/{{ validation_tools_gitleaks_archive }}
+validation_tools_gitleaks_sha256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"

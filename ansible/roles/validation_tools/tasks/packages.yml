@@ -1,0 +1,9 @@
+---
+- name: Install validation tool archive prerequisites
+  ansible.builtin.apt:
+    name:
+      - unzip
+      - xz-utils
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

@@ -1,0 +1,18 @@
+---
+- name: Maintain validation tool directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /var/cache/rivet/validation-tools
+    - /opt/rivet
+    - /opt/rivet/validation-tools
+    - /opt/rivet/validation-tools/tofu
+    - "/opt/rivet/validation-tools/tofu/{{ validation_tools_tofu_version }}"
+    - /opt/rivet/validation-tools/shellcheck
+    - "/opt/rivet/validation-tools/shellcheck/{{ validation_tools_shellcheck_version }}"
+    - /opt/rivet/validation-tools/gitleaks
+    - "/opt/rivet/validation-tools/gitleaks/{{ validation_tools_gitleaks_version }}"

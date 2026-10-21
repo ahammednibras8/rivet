@@ -27,6 +27,8 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-version-pin.sh"
 "${repo_root}/tests/ansible-github-cli-version-pin.sh"
 "${repo_root}/tests/ansible-github-cli-install.sh"
+"${repo_root}/tests/ansible-validation-tools-version-pin.sh"
+"${repo_root}/tests/ansible-validation-tools-installation-policy.sh"
 "${repo_root}/tests/repository-allowlist-schema.sh"
 "${repo_root}/tests/repository-allowlist-remote-policy.sh"
 "${repo_root}/tests/repository-command-interface.sh"
