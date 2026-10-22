@@ -29,6 +29,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-github-cli-install.sh"
 "${repo_root}/tests/ansible-codex-cli-version-pin.sh"
 "${repo_root}/tests/ansible-codex-cli-installation-policy.sh"
+"${repo_root}/tests/ansible-codex-cli-code-mode-host.sh"
 "${repo_root}/tests/ansible-codex-cli-path.sh"
 "${repo_root}/tests/ansible-validation-tools-version-pin.sh"
 "${repo_root}/tests/ansible-validation-tools-installation-policy.sh"

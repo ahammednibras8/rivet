@@ -33,7 +33,8 @@ required_runbook_text=(
   "HTTP \`403\` with \`Resource not accessible by personal access token\`"
   "Agent provider | T3 existing-CLI instance named \`Standalone Codex\`"
   "Codex CLI | \`0.163.0\`, pinned and checksum-verified by Ansible"
-  'beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4'
+  '582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182'
+  '/opt/rivet/codex-cli/0.163.0/bin/codex-code-mode-host'
   'cli_auth_credentials_store = "file"'
   'codex login --device-auth'
   'codex login status >/dev/null'

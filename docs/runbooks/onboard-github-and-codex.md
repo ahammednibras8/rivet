@@ -107,17 +107,18 @@ sudo -u rivet env \
   codex --version
 readlink -f /usr/local/bin/codex
 stat -c '%U:%G %a %n' \
-  /opt/rivet/codex-cli/0.163.0/codex-x86_64-unknown-linux-musl \
+  /opt/rivet/codex-cli/0.163.0/bin/codex \
+  /opt/rivet/codex-cli/0.163.0/bin/codex-code-mode-host \
   /usr/local/bin/codex \
   /home/rivet/.codex
 sha256sum \
-  /var/cache/rivet/codex-cli/codex-x86_64-unknown-linux-musl.tar.gz
+  /var/cache/rivet/codex-cli/codex-package-x86_64-unknown-linux-musl.tar.gz
 ```
 
 Require `codex-cli 0.163.0`, a stable link resolving into the versioned
-root-owned installation, executable mode `0755`, Codex home owner
+root-owned installation, CLI and code-mode-host executable mode `0755`, Codex home owner
 `rivet:rivet` and mode `0700`, and archive SHA-256
-`beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4`.
+`582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182`.
 
 ## Create and store the GitHub credential
 

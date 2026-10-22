@@ -9,30 +9,60 @@
     mode: "0644"
   when: not ansible_check_mode
 
-- name: Extract reviewed standalone Codex CLI executable
+- name: Extract reviewed complete standalone Codex package
   ansible.builtin.unarchive:
     src: "/var/cache/rivet/codex-cli/{{ codex_cli_archive }}"
     dest: "/opt/rivet/codex-cli/{{ codex_cli_version }}"
     remote_src: true
     owner: root
     group: root
-    include:
-      - "{{ codex_cli_archive_binary }}"
-    creates: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ codex_cli_archive_binary }}"
+    creates: "/opt/rivet/codex-cli/{{ codex_cli_version }}/codex-package.json"
   when: not ansible_check_mode
 
-- name: Protect standalone Codex CLI executable
+- name: Protect complete standalone Codex package executables
   ansible.builtin.file:
-    path: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ codex_cli_archive_binary }}"
+    path: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ item }}"
     state: file
     owner: root
     group: root
     mode: "0755"
+  loop:
+    - "{{ codex_cli_binary }}"
+    - "{{ codex_cli_code_mode_host_binary }}"
+    - "{{ codex_cli_search_binary }}"
+    - "{{ codex_cli_sandbox_binary }}"
+  when: not ansible_check_mode
+
+- name: Inspect complete standalone Codex package executables
+  ansible.builtin.stat:
+    path: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ item }}"
+  loop:
+    - "{{ codex_cli_binary }}"
+    - "{{ codex_cli_code_mode_host_binary }}"
+    - "{{ codex_cli_search_binary }}"
+    - "{{ codex_cli_sandbox_binary }}"
+  register: codex_cli_package_executables
+  when: not ansible_check_mode
+
+- name: Verify complete standalone Codex package executables
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - item.stat.pw_name == "root"
+      - item.stat.gr_name == "root"
+      - item.stat.mode == "0755"
+    fail_msg: >-
+      The reviewed Codex package executable {{ item.item }} is missing or has
+      unexpected ownership or mode
+  loop: "{{ codex_cli_package_executables.results }}"
+  loop_control:
+    label: "{{ item.item }}"
   when: not ansible_check_mode
 
 - name: Link standalone Codex CLI into the system path
   ansible.builtin.file:
-    src: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ codex_cli_archive_binary }}"
+    src: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ codex_cli_binary }}"
     dest: /usr/local/bin/codex
     state: link
     owner: root
