@@ -1,0 +1,21 @@
+---
+- name: Maintain standalone Codex CLI directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /var/cache/rivet/codex-cli
+    - /opt/rivet
+    - /opt/rivet/codex-cli
+    - "/opt/rivet/codex-cli/{{ codex_cli_version }}"
+
+- name: Prepare private Codex configuration directory
+  ansible.builtin.file:
+    path: /home/rivet/.codex
+    state: directory
+    owner: rivet
+    group: rivet
+    mode: "0700"

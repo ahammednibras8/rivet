@@ -19,6 +19,7 @@ expected_loopback='- name: Maintain T3 Code service override directory
     content: |
       [Service]
       Environment=T3CODE_HOST=127.0.0.1
+      Environment=PATH=/home/rivet/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       UMask=0027
     dest: /home/rivet/.config/systemd/user/t3code.service.d/10-loopback.conf
     owner: rivet
@@ -42,7 +43,7 @@ expected_loopback='- name: Maintain T3 Code service override directory
     - t3_code_loopback_override.changed'
 
 if [[ ! -f "$service_file" ]] || [[ "$(<"$service_file")" != *"$expected_loopback"* ]]; then
-  echo "The T3 Code service must have a private, managed loopback-only systemd override" >&2
+  echo "The T3 Code service must have a private, managed loopback and PATH override" >&2
   exit 1
 fi
 

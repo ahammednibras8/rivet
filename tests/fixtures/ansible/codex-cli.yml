@@ -1,0 +1,6 @@
+---
+- name: Verify the standalone Codex CLI role
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: codex_cli

@@ -52,6 +52,7 @@
     content: |
       [Service]
       Environment=T3CODE_HOST=127.0.0.1
+      Environment=PATH=/home/rivet/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       UMask=0027
     dest: /home/rivet/.config/systemd/user/t3code.service.d/10-loopback.conf
     owner: rivet

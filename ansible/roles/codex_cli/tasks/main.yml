@@ -1,0 +1,6 @@
+---
+- name: Prepare the standalone Codex CLI filesystem
+  ansible.builtin.import_tasks: layout.yml
+
+- name: Install the reviewed standalone Codex CLI release
+  ansible.builtin.import_tasks: install.yml

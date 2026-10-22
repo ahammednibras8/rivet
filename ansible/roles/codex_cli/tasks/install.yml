@@ -1,0 +1,63 @@
+---
+- name: Download reviewed standalone Codex CLI release
+  ansible.builtin.get_url:
+    url: "{{ codex_cli_download_url }}"
+    dest: "/var/cache/rivet/codex-cli/{{ codex_cli_archive }}"
+    checksum: "sha256:{{ codex_cli_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not ansible_check_mode
+
+- name: Extract reviewed standalone Codex CLI executable
+  ansible.builtin.unarchive:
+    src: "/var/cache/rivet/codex-cli/{{ codex_cli_archive }}"
+    dest: "/opt/rivet/codex-cli/{{ codex_cli_version }}"
+    remote_src: true
+    owner: root
+    group: root
+    include:
+      - "{{ codex_cli_archive_binary }}"
+    creates: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ codex_cli_archive_binary }}"
+  when: not ansible_check_mode
+
+- name: Protect standalone Codex CLI executable
+  ansible.builtin.file:
+    path: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ codex_cli_archive_binary }}"
+    state: file
+    owner: root
+    group: root
+    mode: "0755"
+  when: not ansible_check_mode
+
+- name: Link standalone Codex CLI into the system path
+  ansible.builtin.file:
+    src: "/opt/rivet/codex-cli/{{ codex_cli_version }}/{{ codex_cli_archive_binary }}"
+    dest: /usr/local/bin/codex
+    state: link
+    owner: root
+    group: root
+    force: true
+  when: not ansible_check_mode
+
+- name: Read installed standalone Codex CLI version as rivet
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/codex
+      - --version
+  become: true
+  become_user: rivet
+  environment:
+    HOME: /home/rivet
+    CODEX_HOME: /home/rivet/.codex
+    PATH: /home/rivet/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  register: codex_cli_installed_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify installed standalone Codex CLI version
+  ansible.builtin.assert:
+    that:
+      - (codex_cli_installed_version.stdout | trim) == ("codex-cli " ~ codex_cli_version)
+    fail_msg: "Installed Codex CLI does not match reviewed version {{ codex_cli_version }}"
+  when: not ansible_check_mode
