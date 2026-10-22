@@ -23,13 +23,15 @@ requires the provider CLI to be on the server's `PATH`, or to have an explicit
 binary path in provider settings. The bundled T3 compatibility policy marks
 Codex `>=0.156.0` supported and recommends `>=0.159.0`.
 
-OpenAI publishes standalone Codex binaries for Linux. The latest stable,
-non-prerelease release reviewed on 2026-10-22 was `0.163.0`. Its official
-Linux x86-64 musl archive is
-`codex-x86_64-unknown-linux-musl.tar.gz`. The release API publishes SHA-256
-`beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4`;
-an independent download produced the same digest, contained one executable,
-and reported `codex-cli 0.163.0`.
+OpenAI publishes complete standalone Codex packages for Linux. The latest
+stable, non-prerelease release reviewed on 2026-10-22 was `0.163.0`. Its
+official Linux x86-64 musl package is
+`codex-package-x86_64-unknown-linux-musl.tar.gz`. The release manifest and API
+publish SHA-256
+`582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182`.
+The reviewed package contains `bin/codex`, `bin/codex-code-mode-host`, the
+bundled search binary, and Linux sandbox resources. The earlier CLI-only
+archive omitted the code-mode host and cannot support T3 tool execution.
 
 ## Decision
 
@@ -40,9 +42,10 @@ host. The accepted release is:
 | --- | --- |
 | Version | `0.163.0` |
 | Upstream tag | `rust-v0.163.0` |
-| Artifact | `codex-x86_64-unknown-linux-musl.tar.gz` |
-| SHA-256 | `beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4` |
-| Versioned executable | `/opt/rivet/codex-cli/0.163.0/codex-x86_64-unknown-linux-musl` |
+| Artifact | `codex-package-x86_64-unknown-linux-musl.tar.gz` |
+| SHA-256 | `582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182` |
+| Versioned executable | `/opt/rivet/codex-cli/0.163.0/bin/codex` |
+| Code-mode host | `/opt/rivet/codex-cli/0.163.0/bin/codex-code-mode-host` |
 | Stable command | `/usr/local/bin/codex` |
 | Codex home | `/home/rivet/.codex` |
 
