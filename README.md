@@ -295,6 +295,7 @@ rationale, security controls, acceptance gates, or review triggers.
 | Host lifecycle | Keep the Phase 1 host always on; do not implement routine suspend/resume | [ADR-0002](docs/adr/0002-keep-the-phase-1-host-always-on.md) |
 | Remote access | Use T3 Connect as the only Phase 1 route; expose no public T3, HTTP, or HTTPS listener | [ADR-0003](docs/adr/0003-use-t3-connect-for-phase-1-remote-access.md) |
 | Automation | Use OpenTofu with the official AWS provider for cloud resources, a private versioned and encrypted S3 backend in `ap-south-1`, minimal cloud-init for first boot, and Ansible Core for host configuration | [ADR-0004](docs/adr/0004-use-opentofu-and-ansible-for-phase-1-automation.md) |
+| Agent provider | Install a pinned standalone Codex CLI with Ansible and use its existing login through T3 Code | [ADR-0007](docs/adr/0007-use-standalone-codex-cli.md) |
 
 The [cloud-foundation provisioning runbook](docs/runbooks/provision-cloud-foundation.md)
 is the operator entry point for the reviewed backend, plan, apply, convergence,
@@ -306,8 +307,8 @@ environment deregistration, recovery, and failure-isolation workflow.
 
 The [GitHub and Codex onboarding runbook](docs/runbooks/onboard-github-and-codex.md)
 covers the approved repository boundary, read-only GitHub credential,
-cloud-owned checkout, managed Codex provider, supervised mobile thread, and
-credential rotation workflow.
+cloud-owned checkout, standalone Codex provider, supervised mobile thread,
+credential rotation, and provider rollback workflow.
 
 The [organization repository allowlist runbook](docs/runbooks/manage-repository-allowlist.md)
 defines exact-repository approval, immutable GitHub identity verification,

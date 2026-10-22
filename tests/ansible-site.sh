@@ -28,6 +28,7 @@ expected_playbook='---
     - role: host_firewall
     - role: github_cli
     - role: validation_tools
+    - role: codex_cli
     - role: repository_access
     - role: t3_code'
 

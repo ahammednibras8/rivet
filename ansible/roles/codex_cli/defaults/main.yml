@@ -1,0 +1,7 @@
+---
+codex_cli_version: "0.163.0"
+codex_cli_archive: "codex-x86_64-unknown-linux-musl.tar.gz"
+codex_cli_archive_binary: "codex-x86_64-unknown-linux-musl"
+codex_cli_download_url: >-
+  https://github.com/openai/codex/releases/download/rust-v{{ codex_cli_version }}/{{ codex_cli_archive }}
+codex_cli_sha256: "beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4"
