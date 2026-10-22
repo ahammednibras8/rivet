@@ -24,3 +24,4 @@
     - role: codex_cli
     - role: repository_access
     - role: t3_code
+    - role: deployment_control

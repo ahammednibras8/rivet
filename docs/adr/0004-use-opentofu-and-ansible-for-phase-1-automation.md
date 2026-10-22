@@ -6,6 +6,11 @@
 - Review trigger: Second cloud provider, automated apply requirement, or tool
   support change
 
+> **Amended by ADR-0008:** The tool and reviewed-plan decisions remain in
+> force. Human-triggered plan and apply may now execute on the cloud workspace
+> from a root-owned merged release with short-lived AWS login, instead of
+> requiring the original operator Mac.
+
 ## Context
 
 Rivet needs two different kinds of reproducible automation:

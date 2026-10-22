@@ -32,6 +32,8 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/ansible-codex-cli-path.sh"
 "${repo_root}/tests/ansible-validation-tools-version-pin.sh"
 "${repo_root}/tests/ansible-validation-tools-installation-policy.sh"
+"${repo_root}/tests/ansible-deployment-control.sh"
+"${repo_root}/tests/deployment-command-policy.sh"
 "${repo_root}/tests/repository-allowlist-schema.sh"
 "${repo_root}/tests/repository-allowlist-remote-policy.sh"
 "${repo_root}/tests/repository-command-interface.sh"
@@ -96,6 +98,7 @@ git -C "${repo_root}" ls-files -z \
 "${repo_root}/tests/workspace-destruction-verification-policy.sh"
 "${repo_root}/tests/workspace-destruction-docs.sh"
 "${repo_root}/tests/cloud-originated-rivet-pr-docs.sh"
+"${repo_root}/tests/cloud-deployment-docs.sh"
 "${repo_root}/tests/repository-secrets.sh"
 
 git -C "${repo_root}" diff --check

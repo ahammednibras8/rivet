@@ -301,6 +301,11 @@ The [cloud-foundation provisioning runbook](docs/runbooks/provision-cloud-founda
 is the operator entry point for the reviewed backend, plan, apply, convergence,
 and verification workflow.
 
+The [laptop-independent deployment runbook](docs/runbooks/deploy-without-the-operator-mac.md)
+defines the human-triggered cloud plan/apply path, root-owned merged releases,
+temporary cross-device AWS login, exact saved-plan application, and off-device
+SSH recovery prerequisite. A merge never triggers an automatic deployment.
+
 The [T3 Connect operations runbook](docs/runbooks/operate-t3-connect.md) covers
 the reviewed headless authorization, mobile connection, device revocation,
 environment deregistration, recovery, and failure-isolation workflow.

@@ -30,7 +30,8 @@ expected_playbook='---
     - role: validation_tools
     - role: codex_cli
     - role: repository_access
-    - role: t3_code'
+    - role: t3_code
+    - role: deployment_control'
 
 if [[ "$(<"${playbook}")" != "${expected_playbook}" ]]; then
   echo "Unexpected role composition or execution order in ${playbook}" >&2

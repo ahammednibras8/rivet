@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly action="${1:-}"
+readonly login_profile=rivet-developer
+readonly process_profile=rivet-developer-sdk
+readonly operator_profile=rivet-operator
+readonly region=ap-south-1
+readonly expected_user=rivet-developer
+
+usage() {
+  echo 'Usage: rivet-aws-session {login|verify|logout}' >&2
+  exit 2
+}
+
+fail() {
+  echo "AWS session rejected: $1" >&2
+  exit 1
+}
+
+[[ $# -eq 1 ]] || usage
+[[ "$action" == login || "$action" == verify || "$action" == logout ]] || usage
+[[ "$(id -un)" == rivet ]] || fail 'run this command as the rivet service account'
+
+export HOME=/home/rivet
+export AWS_CONFIG_FILE=/home/rivet/.aws/config
+export AWS_SHARED_CREDENTIALS_FILE=/home/rivet/.aws/credentials
+export AWS_LOGIN_CACHE_DIRECTORY=/home/rivet/.aws/login/cache
+export AWS_PAGER=
+export PATH=/usr/local/bin:/usr/bin:/bin
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE
+
+install -d -m 0700 /home/rivet/.aws /home/rivet/.aws/login /home/rivet/.aws/login/cache
+
+if [[ "$action" == logout ]]; then
+  aws logout --profile "$login_profile"
+  echo 'AWS temporary login session removed.'
+  exit 0
+fi
+
+aws configure set region "$region" --profile "$login_profile"
+aws configure set output json --profile "$login_profile"
+
+if [[ "$action" == login ]]; then
+  echo 'Complete the private AWS browser authorization; do not paste its URL or code into chat.'
+  aws login --remote --profile "$login_profile"
+fi
+
+source_identity="$(aws sts get-caller-identity --profile "$login_profile" --output json)" ||
+  fail 'the short-lived login profile is not authenticated'
+account_id="$(jq -r '.Account' <<<"$source_identity")"
+source_arn="$(jq -r '.Arn' <<<"$source_identity")"
+[[ "$account_id" =~ ^[0-9]{12}$ ]] || fail 'AWS returned an invalid account identifier'
+[[ "$source_arn" == "arn:aws:iam::${account_id}:user/${expected_user}" ]] ||
+  fail 'the browser session is not the approved Rivet developer identity'
+
+aws configure set region "$region" --profile "$process_profile"
+aws configure set output json --profile "$process_profile"
+aws configure set credential_process \
+  "aws configure export-credentials --profile ${login_profile} --format process" \
+  --profile "$process_profile"
+
+aws configure set region "$region" --profile "$operator_profile"
+aws configure set output json --profile "$operator_profile"
+aws configure set source_profile "$process_profile" --profile "$operator_profile"
+aws configure set role_arn \
+  "arn:aws:iam::${account_id}:role/rivet-operator" \
+  --profile "$operator_profile"
+
+chmod 0600 "$AWS_CONFIG_FILE"
+if [[ -e "$AWS_SHARED_CREDENTIALS_FILE" ]]; then
+  chmod 0600 "$AWS_SHARED_CREDENTIALS_FILE"
+fi
+
+operator_arn="$(
+  aws sts get-caller-identity \
+    --profile "$operator_profile" \
+    --query Arn \
+    --output text
+)" || fail 'the approved operator role could not be assumed'
+[[ "$operator_arn" == "arn:aws:sts::${account_id}:assumed-role/rivet-operator/"* ]] ||
+  fail 'AWS did not return the approved operator role'
+
+echo 'AWS temporary login and rivet-operator role are valid.'

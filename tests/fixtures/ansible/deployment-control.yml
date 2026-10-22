@@ -1,0 +1,7 @@
+---
+- name: Test deployment control role
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - role: deployment_control

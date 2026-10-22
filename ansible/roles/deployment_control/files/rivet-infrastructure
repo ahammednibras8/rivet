@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly action="${1:-}"
+readonly deployment_state=/var/lib/rivet/deployment
+readonly deployed_commit_file="${deployment_state}/deployed-commit"
+readonly releases_directory="${deployment_state}/releases"
+readonly infrastructure_state=/home/rivet/.local/state/rivet/infrastructure
+
+usage() {
+  echo 'Usage: rivet-infrastructure {plan|show|apply}' >&2
+  exit 2
+}
+
+fail() {
+  echo "Infrastructure operation refused: $1" >&2
+  exit 1
+}
+
+[[ $# -eq 1 ]] || usage
+[[ "$action" == plan || "$action" == show || "$action" == apply ]] || usage
+[[ "$(id -un)" == rivet ]] || fail 'run this command as the rivet service account'
+[[ -f "$deployed_commit_file" && ! -L "$deployed_commit_file" ]] ||
+  fail 'no host-verified main release is deployed'
+
+deployed_commit="$(<"$deployed_commit_file")"
+[[ "$deployed_commit" =~ ^[0-9a-f]{40}$ ]] || fail 'the deployed commit marker is invalid'
+release_directory="${releases_directory}/${deployed_commit}"
+[[ -d "$release_directory/.git" && ! -L "$release_directory" ]] ||
+  fail 'the root-owned deployed release is unavailable'
+[[ "$(git -C "$release_directory" rev-parse HEAD)" == "$deployed_commit" ]] ||
+  fail 'the deployed release does not match its marker'
+[[ "$(stat -c '%U:%G' "$release_directory")" == root:rivet ]] ||
+  fail 'the deployed release ownership is unsafe'
+
+export HOME=/home/rivet
+export AWS_CONFIG_FILE=/home/rivet/.aws/config
+export AWS_SHARED_CREDENTIALS_FILE=/home/rivet/.aws/credentials
+export AWS_LOGIN_CACHE_DIRECTORY=/home/rivet/.aws/login/cache
+export AWS_PROFILE=rivet-operator
+export AWS_PAGER=
+export PATH=/usr/local/bin:/usr/bin:/bin
+
+/usr/local/bin/rivet-aws-session verify >/dev/null
+
+operation_directory="${infrastructure_state}/${deployed_commit}"
+plan_file="${operation_directory}/tfplan"
+plan_commit_file="${operation_directory}/planned-commit"
+export TF_DATA_DIR="${operation_directory}/.terraform"
+install -d -m 0700 "$operation_directory"
+
+if [[ "$action" == show ]]; then
+  [[ -f "$plan_file" && -f "$plan_commit_file" ]] || fail 'no saved plan exists'
+  [[ "$(<"$plan_commit_file")" == "$deployed_commit" ]] ||
+    fail 'the saved plan belongs to another release'
+  tofu -chdir="$release_directory/infra/tofu" show -no-color "$plan_file"
+  exit 0
+fi
+
+tofu -chdir="$release_directory/infra/tofu" init -input=false
+
+if [[ "$action" == plan ]]; then
+  tofu -chdir="$release_directory/infra/tofu" plan \
+    -input=false \
+    -out="$plan_file"
+  printf '%s\n' "$deployed_commit" >"$plan_commit_file"
+  chmod 0600 "$plan_file" "$plan_commit_file"
+  tofu -chdir="$release_directory/infra/tofu" show -no-color "$plan_file"
+  echo 'Review the complete plan, then run: rivet-infrastructure apply'
+  exit 0
+fi
+
+[[ -f "$plan_file" && -f "$plan_commit_file" ]] || fail 'no saved plan exists'
+[[ "$(<"$plan_commit_file")" == "$deployed_commit" ]] ||
+  fail 'the saved plan belongs to another release'
+
+tofu -chdir="$release_directory/infra/tofu" apply -input=false "$plan_file"
+
+set +e
+tofu -chdir="$release_directory/infra/tofu" plan -input=false -detailed-exitcode
+drift_exit_code=$?
+set -e
+[[ "$drift_exit_code" -eq 0 ]] ||
+  fail 'the post-apply drift check did not return a clean state'
+
+echo "Infrastructure apply completed from main commit ${deployed_commit}."
