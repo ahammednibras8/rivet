@@ -1,0 +1,12 @@
+---
+- name: Install deployment control prerequisites
+  ansible.builtin.import_tasks: packages.yml
+
+- name: Prepare deployment control filesystem
+  ansible.builtin.import_tasks: layout.yml
+
+- name: Install pinned deployment tooling
+  ansible.builtin.import_tasks: tooling.yml
+
+- name: Install deployment control commands
+  ansible.builtin.import_tasks: commands.yml

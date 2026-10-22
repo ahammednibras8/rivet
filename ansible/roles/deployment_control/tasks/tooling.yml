@@ -1,0 +1,122 @@
+---
+- name: Create the deployment Ansible virtual environment
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -m
+      - venv
+      - /opt/rivet/deployment/venv
+    creates: /opt/rivet/deployment/venv/bin/pip
+  when: not ansible_check_mode
+
+- name: Install the pinned deployment Ansible Core
+  ansible.builtin.pip:
+    name: "ansible-core=={{ deployment_control_ansible_core_version }}"
+    executable: /opt/rivet/deployment/venv/bin/pip
+  when: not ansible_check_mode
+
+- name: Install the pinned deployment Ansible collection
+  ansible.builtin.command:
+    argv:
+      - /opt/rivet/deployment/venv/bin/ansible-galaxy
+      - collection
+      - install
+      - "community.general:{{ deployment_control_community_general_version }}"
+      - --collections-path
+      - /opt/rivet/deployment/collections
+  register: deployment_control_collection_install
+  changed_when: >-
+    'Nothing to do' not in deployment_control_collection_install.stdout
+  when: not ansible_check_mode
+
+- name: Download the reviewed AWS CLI release
+  ansible.builtin.get_url:
+    url: "{{ deployment_control_aws_cli_url }}"
+    dest: "/var/cache/rivet/deployment/{{ deployment_control_aws_cli_archive }}"
+    checksum: "sha256:{{ deployment_control_aws_cli_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not ansible_check_mode
+
+- name: Extract the reviewed AWS CLI release
+  ansible.builtin.unarchive:
+    src: "/var/cache/rivet/deployment/{{ deployment_control_aws_cli_archive }}"
+    dest: "/var/cache/rivet/deployment/aws-cli-{{ deployment_control_aws_cli_version }}"
+    remote_src: true
+    creates: >-
+      /var/cache/rivet/deployment/aws-cli-{{ deployment_control_aws_cli_version }}/aws/install
+  when: not ansible_check_mode
+
+- name: Read the existing AWS CLI version before installation
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/aws
+      - --version
+  register: deployment_control_existing_aws_cli_version
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Install the reviewed AWS CLI release
+  ansible.builtin.command:
+    argv:
+      - >-
+        /var/cache/rivet/deployment/aws-cli-{{ deployment_control_aws_cli_version }}/aws/install
+      - --install-dir
+      - /opt/rivet/aws-cli
+      - --bin-dir
+      - /usr/local/bin
+      - --update
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - >-
+      ('aws-cli/' ~ deployment_control_aws_cli_version)
+      not in deployment_control_existing_aws_cli_version.stdout
+
+- name: Read installed deployment Ansible version
+  ansible.builtin.command:
+    argv:
+      - /opt/rivet/deployment/venv/bin/ansible
+      - --version
+  register: deployment_control_ansible_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Read installed deployment collection inventory
+  ansible.builtin.command:
+    argv:
+      - /opt/rivet/deployment/venv/bin/ansible-galaxy
+      - collection
+      - list
+      - community.general
+      - --collections-path
+      - /opt/rivet/deployment/collections
+  register: deployment_control_collection_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Read installed AWS CLI version
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/aws
+      - --version
+  register: deployment_control_aws_cli_installed_version
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify pinned deployment tool versions
+  ansible.builtin.assert:
+    that:
+      - >-
+        ('ansible [core ' ~ deployment_control_ansible_core_version ~ ']')
+        in deployment_control_ansible_version.stdout
+      - >-
+        deployment_control_community_general_version
+        in deployment_control_collection_version.stdout
+      - >-
+        ('aws-cli/' ~ deployment_control_aws_cli_version)
+        in deployment_control_aws_cli_installed_version.stdout
+    fail_msg: The installed deployment tools do not match the reviewed pins
+  when: not ansible_check_mode

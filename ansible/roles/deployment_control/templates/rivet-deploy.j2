@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly action="${1:-}"
+readonly source_repository={{ deployment_control_repository_path | quote }}
+readonly expected_remote={{ deployment_control_repository_remote | quote }}
+readonly repository_api={{ deployment_control_repository_api | quote }}
+readonly default_branch={{ deployment_control_default_branch | quote }}
+readonly state_directory=/var/lib/rivet/deployment
+readonly releases_directory="${state_directory}/releases"
+readonly planned_commit_file="${state_directory}/planned-commit"
+readonly deployed_commit_file="${state_directory}/deployed-commit"
+readonly lock_file="${state_directory}/deployment.lock"
+readonly ansible_bin=/opt/rivet/deployment/venv/bin
+readonly collections_path=/opt/rivet/deployment/collections
+readonly operator_key_file=/home/rivet-admin/.ssh/authorized_keys
+
+usage() {
+  echo 'Usage: rivet-deploy {plan|apply}' >&2
+  exit 2
+}
+
+fail() {
+  echo "Deployment refused: $1" >&2
+  exit 1
+}
+
+[[ "$action" == plan || "$action" == apply ]] || usage
+[[ "$(id -u)" == 0 ]] || fail 'the command must run as root through the approved sudo rule'
+
+exec 9>"$lock_file"
+flock -n 9 || fail 'another deployment operation is active'
+
+[[ -d "$source_repository/.git" && ! -L "$source_repository" ]] ||
+  fail 'the approved cloud checkout is unavailable'
+[[ "$(realpath -e "$source_repository")" == "$source_repository" ]] ||
+  fail 'the approved cloud checkout path is not canonical'
+
+actual_remote="$(
+  sudo -u rivet /usr/bin/git -C "$source_repository" remote get-url origin
+)"
+[[ "$actual_remote" == "$expected_remote" ]] ||
+  fail 'the approved cloud checkout has an unexpected origin'
+
+sudo -u rivet env \
+  HOME=/home/rivet \
+  GH_CONFIG_DIR=/home/rivet/.config/gh \
+  PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/git -C "$source_repository" fetch \
+    --quiet \
+    --force \
+    --prune \
+    origin \
+    "+refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
+
+upstream_commit="$(
+  /usr/bin/git -C "$source_repository" rev-parse --verify \
+    "refs/remotes/origin/${default_branch}^{commit}"
+)"
+[[ "$upstream_commit" =~ ^[0-9a-f]{40}$ ]] ||
+  fail 'origin returned an invalid commit identifier'
+
+api_commit="$(
+  sudo -u rivet env \
+    HOME=/home/rivet \
+    GH_CONFIG_DIR=/home/rivet/.config/gh \
+    PATH=/usr/local/bin:/usr/bin:/bin \
+    /usr/bin/gh api \
+      --method GET \
+      --header 'Accept: application/vnd.github+json' \
+      --header 'X-GitHub-Api-Version: 2022-11-28' \
+      "${repository_api}/commits/${default_branch}" \
+      --jq .sha
+)"
+[[ "$api_commit" == "$upstream_commit" ]] ||
+  fail 'the Git remote and GitHub API disagree about main'
+
+release_directory="${releases_directory}/${upstream_commit}"
+
+stage_release() {
+  local staging_directory
+
+  if [[ -d "$release_directory/.git" ]]; then
+    [[ "$(stat -c '%U:%G' "$release_directory")" == root:rivet ]] ||
+      fail 'the staged release has unsafe ownership'
+    [[ "$(/usr/bin/git -C "$release_directory" rev-parse HEAD)" == "$upstream_commit" ]] ||
+      fail 'the staged release has an unexpected commit'
+    [[ -z "$(/usr/bin/git -C "$release_directory" status --porcelain=v1)" ]] ||
+      fail 'the staged release is not clean'
+    return
+  fi
+
+  [[ ! -e "$release_directory" ]] ||
+    fail 'the release path exists but is not a valid checkout'
+
+  staging_directory="$(mktemp -d "${releases_directory}/.staging.XXXXXX")"
+  cleanup_staging() {
+    if [[ -n "${staging_directory:-}" &&
+          "$staging_directory" == "${releases_directory}/.staging."* &&
+          -d "$staging_directory" &&
+          ! -L "$staging_directory" ]]; then
+      rm -rf -- "$staging_directory"
+    fi
+  }
+  trap cleanup_staging RETURN
+
+  /usr/bin/git clone \
+    --quiet \
+    --no-hardlinks \
+    --no-checkout \
+    "$source_repository" \
+    "$staging_directory"
+  /usr/bin/git -C "$staging_directory" fetch \
+    --quiet \
+    "$source_repository" \
+    "refs/remotes/origin/${default_branch}:refs/remotes/origin/${default_branch}"
+  /usr/bin/git -C "$staging_directory" checkout \
+    --quiet \
+    --detach \
+    --force \
+    "$upstream_commit"
+  /usr/bin/git -C "$staging_directory" remote set-url origin "$expected_remote"
+  [[ "$(/usr/bin/git -C "$staging_directory" rev-parse HEAD)" == "$upstream_commit" ]] ||
+    fail 'the staged checkout did not resolve to the approved commit'
+  [[ -z "$(/usr/bin/git -C "$staging_directory" status --porcelain=v1)" ]] ||
+    fail 'the staged checkout is not clean'
+
+  chown -R root:rivet "$staging_directory"
+  chmod -R go-w "$staging_directory"
+  mv -- "$staging_directory" "$release_directory"
+  staging_directory=
+  trap - RETURN
+}
+
+read_operator_key() {
+  [[ -f "$operator_key_file" && ! -L "$operator_key_file" ]] ||
+    fail 'the installed operator public key is unavailable'
+  [[ "$(wc -l <"$operator_key_file")" == 1 ]] ||
+    fail 'the operator public-key file must contain exactly one key'
+  /usr/bin/ssh-keygen -l -f "$operator_key_file" >/dev/null ||
+    fail 'the installed operator public key is invalid'
+  cat "$operator_key_file"
+}
+
+run_static_gate() {
+  env \
+    HOME=/root \
+    PATH="${ansible_bin}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    tofu -chdir="$release_directory/infra/tofu" init \
+      -backend=false \
+      -input=false
+  env \
+    HOME=/root \
+    PATH="${ansible_bin}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    tofu -chdir="$release_directory/tests/fixtures/tofu-cloud-init" init \
+      -backend=false \
+      -input=false
+  env \
+    HOME=/root \
+    PATH="${ansible_bin}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    ANSIBLE_COLLECTIONS_PATH="$collections_path" \
+    "$release_directory/tests/verify-cloud-foundation.sh"
+}
+
+run_ansible() {
+  local operator_key="$1"
+  shift
+
+  env \
+    HOME=/root \
+    PATH="${ansible_bin}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    ANSIBLE_CONFIG="$release_directory/ansible/ansible.cfg" \
+    ANSIBLE_COLLECTIONS_PATH="$collections_path" \
+    RIVET_WORKSPACE_IP=127.0.0.1 \
+    RIVET_OPERATOR_SSH_PUBLIC_KEY="$operator_key" \
+    "$ansible_bin/ansible-playbook" \
+      --inventory "$release_directory/ansible/inventory/hosts.yml" \
+      --connection local \
+      "$@" \
+      "$release_directory/ansible/site.yml"
+}
+
+write_marker() {
+  local target="$1"
+  local temporary_marker
+
+  temporary_marker="$(mktemp "${state_directory}/.marker.XXXXXX")"
+  printf '%s\n' "$upstream_commit" >"$temporary_marker"
+  chown root:rivet "$temporary_marker"
+  chmod 0640 "$temporary_marker"
+  mv -- "$temporary_marker" "$target"
+}
+
+stage_release
+operator_key="$(read_operator_key)"
+
+if [[ "$action" == plan ]]; then
+  run_static_gate
+  run_ansible "$operator_key" --check --diff
+  write_marker "$planned_commit_file"
+  printf 'Host deployment plan passed for main commit %s.\n' "$upstream_commit"
+  echo 'Review the output, then run: sudo rivet-deploy-apply'
+  exit 0
+fi
+
+[[ -f "$planned_commit_file" && ! -L "$planned_commit_file" ]] ||
+  fail 'no reviewed host deployment plan exists'
+planned_commit="$(<"$planned_commit_file")"
+[[ "$planned_commit" == "$upstream_commit" ]] ||
+  fail 'origin/main changed after planning; run sudo rivet-deploy-plan again'
+
+run_static_gate
+run_ansible "$operator_key" --diff
+
+convergence_log="/var/log/rivet/deploy-${upstream_commit}.log"
+run_ansible "$operator_key" | tee "$convergence_log"
+chmod 0640 "$convergence_log"
+chown root:rivet "$convergence_log"
+
+recap="$(grep -E '^rivet-workspace[[:space:]]+:' "$convergence_log" | tail -n 1)"
+[[ "$recap" == *'changed=0'* &&
+   "$recap" == *'unreachable=0'* &&
+   "$recap" == *'failed=0'* ]] ||
+  fail 'the second convergence was not clean and idempotent'
+
+write_marker "$deployed_commit_file"
+rm -f -- "$planned_commit_file"
+printf 'Host deployment applied and converged at main commit %s.\n' "$upstream_commit"

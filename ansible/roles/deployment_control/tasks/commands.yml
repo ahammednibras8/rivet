@@ -1,0 +1,40 @@
+---
+- name: Install the privileged deployment implementation
+  ansible.builtin.template:
+    src: rivet-deploy.j2
+    dest: /usr/local/libexec/rivet-deploy
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install argument-free deployment commands
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - rivet-deploy-plan
+    - rivet-deploy-apply
+
+- name: Install unprivileged cloud infrastructure commands
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - rivet-aws-session
+    - rivet-infrastructure
+
+- name: Allow only the argument-free deployment commands as root
+  ansible.builtin.copy:
+    content: |
+      rivet ALL=(root) NOPASSWD: /usr/local/bin/rivet-deploy-plan, /usr/local/bin/rivet-deploy-apply
+    dest: /etc/sudoers.d/rivet-deployment-control
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s

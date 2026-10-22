@@ -1,0 +1,15 @@
+---
+deployment_control_repository_path: /home/rivet/workspaces/rivet
+deployment_control_repository_remote: https://github.com/ahammednibras8/rivet.git
+deployment_control_repository_api: repos/ahammednibras8/rivet
+deployment_control_default_branch: main
+
+deployment_control_ansible_core_version: "2.21.3"
+deployment_control_community_general_version: "13.4.0"
+
+deployment_control_aws_cli_version: "2.38.1"
+deployment_control_aws_cli_archive: >-
+  awscli-exe-linux-x86_64-{{ deployment_control_aws_cli_version }}.zip
+deployment_control_aws_cli_url: >-
+  https://awscli.amazonaws.com/{{ deployment_control_aws_cli_archive }}
+deployment_control_aws_cli_sha256: "b11ed416d91f4251da363a17706938eeaf0e520745754c104c0c1890dd8363c7"
